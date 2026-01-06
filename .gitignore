@@ -66,5 +66,5 @@ Thumbs.db
 requirements.lock.txt
 # Local install notes / developer scratch file
 INSTALL_NOTES.md
-
+/config.json
 # End of file

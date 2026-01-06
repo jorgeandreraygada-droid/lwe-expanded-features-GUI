@@ -27,12 +27,12 @@ class WallpaperEngineGUI:
         self.main_window.config(bg="#1F0120")
         # Ajustar tamaño inicial a la resolución de pantalla
         self.main_window.update_idletasks()
-        sw = self.main_window.winfo_screenwidth()
-        sh = self.main_window.winfo_screenheight()
+        # sw = self.main_window.winfo_screenwidth()
+        # sh = self.main_window.winfo_screenheight()
         # Reservar un pequeño margen para la barra del sistema
-        geom_w = sw
-        geom_h = sh
-        self.main_window.geometry(f"{geom_w}x{geom_h}+0+0")
+        # geom_w = sw
+        # geom_h = sh
+        self.main_window.geometry(f"{800}x{600}+0+0")
         self.main_window.minsize(800, 600)
         self.main_window.resizable(True, True)
         # Hacer que la fila de la galería (1) se expanda con la ventana
