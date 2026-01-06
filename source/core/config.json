@@ -1,0 +1,24 @@
+{
+    "--window": {
+        "active": false,
+        "res": "0x0x0x0"
+    },
+    "--dir": "~/.steam/steam/steamapps/workshop/content/431960/",
+    "--above": false,
+    "--delay": {
+        "active": false,
+        "timer": "0"
+    },
+    "--random": false,
+    "--set": {
+        "active": false,
+        "wallpaper": ""
+    },
+    "--favorites": [],
+    "--groups": {
+        "not working": []
+    },
+    "--pool": [
+    ],
+    "--show-logs": false
+}
