@@ -197,7 +197,8 @@ python3 GUI.py
    - **Window Mode**: Run wallpapers as actual windows
    - **Remove Above Priority**: Remove always-on-top behavior (recommended)
    - **Show Logs**: View real-time application logs
-
+   - **Json Config**: The provided config.json in [source/core/config_example.json] is merely an example. The real
+   config.json is stored at [~/.config/linux-wallpaper-engine-features/]
 ---
 
 ## 🏗️ Architecture
