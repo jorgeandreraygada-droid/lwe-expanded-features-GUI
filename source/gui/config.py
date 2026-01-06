@@ -1,7 +1,16 @@
 import json
-from os import path, makedirs
+import os
+from os import path, makedirs, getenv
+from tkinter import messagebox
 
-CONFIG_PATH = path.join(path.dirname(__file__), "..", "core", "config.json")
+
+def get_config_path():
+    """Obtiene la ruta de configuración según XDG Base Directory"""
+    xdg_config = getenv('XDG_CONFIG_HOME', path.expanduser('~/.config'))
+    return path.join(xdg_config, 'linux-wallpaper-engine', 'config.json')
+
+
+CONFIG_PATH = get_config_path()
 
 RESOLUTIONS = [
     "0x0x0x0",
@@ -31,11 +40,8 @@ DEFAULT_CONFIG = {
         "wallpaper": ""
     },
     "--favorites": [],
-    "--groups": {
-        "not working": []
-    },
-    "--pool": [],
-    "--show-logs": True
+    "--groups": {},
+    "--pool": []
 }
 
 
@@ -70,14 +76,101 @@ def merge_config(defaults, loaded):
             defaults[key] = value
 
 
-def build_args(config):
-    """Construye los argumentos para el script bash en el orden correcto"""
+def validate_directory(dir_path, log_callback=None):
+    """
+    Valida que el directorio exista y sea accesible
+    
+    Args:
+        dir_path: Ruta del directorio a validar
+        log_callback: Función opcional para logging
+    
+    Returns:
+        tuple: (is_valid: bool, error_message: str or None)
+    """
+    if not dir_path:
+        return False, "No directory path specified"
+    
+    if not path.exists(dir_path):
+        error_msg = f"Directory does not exist: {dir_path}"
+        if log_callback:
+            log_callback(f"[WARNING] {error_msg}")
+        return False, error_msg
+    
+    if not path.isdir(dir_path):
+        error_msg = f"Path is not a directory: {dir_path}"
+        if log_callback:
+            log_callback(f"[WARNING] {error_msg}")
+        return False, error_msg
+    
+    # Verificar permisos de lectura
+    if not os.access(dir_path, os.R_OK):
+        error_msg = f"Directory is not readable: {dir_path}"
+        if log_callback:
+            log_callback(f"[WARNING] {error_msg}")
+        return False, error_msg
+    
+    return True, None
+
+
+def build_args(config, log_callback=None, show_gui_warning=False):
+    """
+    Construye los argumentos para el script bash en el orden correcto
+    
+    Args:
+        config: Diccionario de configuración
+        log_callback: Función opcional para logging (ej: gui_log)
+        show_gui_warning: Si True, muestra un messagebox de advertencia
+    
+    Returns:
+        list: Lista de argumentos para el script
+    """
     args = []
 
-    # 1. --dir (siempre primero si existe)
+    # 1. --dir (siempre primero si existe Y es válido)
     dir_path = config.get("--dir")
+    
     if dir_path:
-        args.extend(["--dir", dir_path])
+        is_valid, error_msg = validate_directory(dir_path, log_callback)
+        
+        if is_valid:
+            args.extend(["--dir", dir_path])
+            if log_callback:
+                log_callback(f"[CONFIG] Directory validated: {dir_path}")
+        else:
+            # Directorio no válido - notificar pero continuar
+            if log_callback:
+                log_callback(f"[WARNING] {error_msg}")
+                log_callback("[WARNING] Application will continue. Please select a valid directory.")
+            
+            if show_gui_warning:
+                messagebox.showwarning(
+                    "Invalid Directory",
+                    f"The configured directory could not be found:\n\n{dir_path}\n\n"
+                    f"Error: {error_msg}\n\n"
+                    f"Please use 'PICK DIR' to select a valid wallpaper directory.\n\n"
+                    f"Suggested path:\n"
+                    f"~/.steam/steam/steamapps/workshop/content/431960"
+                )
+            
+            # NO añadir el directorio inválido a los args
+            # Permitir que la app continúe sin directorio
+            return args  # Retornar early sin más argumentos
+
+    else:
+        # No hay directorio configurado
+        if log_callback:
+            log_callback("[INFO] No directory configured yet")
+        
+        if show_gui_warning:
+            messagebox.showinfo(
+                "No Directory Selected",
+                "No wallpaper directory has been selected.\n\n"
+                "Please use 'PICK DIR' to select your wallpaper directory.\n\n"
+                "Suggested path:\n"
+                "~/.steam/steam/steamapps/workshop/content/431960"
+            )
+        
+        return args  # Retornar early sin argumentos
 
     # 2. --window (si está activo)
     window_config = config.get("--window", {})
