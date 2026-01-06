@@ -1,13 +1,13 @@
 {
     "--window": {
-        "active": true,
-        "res": "0x0x1920x1080"
+        "active": false,
+        "res": "0x0x0x0"
     },
-    "--dir": "/home/mauefrod/.steam/steam/steamapps/workshop/content/431960/",
+    "--dir": "~/.steam/steam/steamapps/workshop/content/431960/",
     "--above": true,
     "--delay": {
-        "active": true,
-        "timer": "10"
+        "active": false,
+        "timer": "0"
     },
     "--random": false,
     "--set": {
