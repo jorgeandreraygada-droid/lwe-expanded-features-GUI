@@ -1,0 +1,23 @@
+{
+    "--window": {
+        "active": true,
+        "res": "0x0x1920x1080"
+    },
+    "--dir": "/home/mauefrod/.steam/steam/steamapps/workshop/content/431960/",
+    "--above": true,
+    "--delay": {
+        "active": true,
+        "timer": "10"
+    },
+    "--random": false,
+    "--set": {
+        "active": false,
+        "wallpaper": ""
+    },
+    "--favorites": [],
+    "--groups": {
+        "not working": []
+    },
+    "--pool": [],
+    "--show-logs": false
+}

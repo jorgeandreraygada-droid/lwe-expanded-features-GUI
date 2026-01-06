@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2026 Mauricio Rodríguez
+Copyright (c) 2026 Linux Wallpaper Engine GUI Contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -19,3 +19,27 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+---
+
+## Attribution & Credits
+
+This project builds upon the excellent work of:
+
+- **linux-wallpaperengine** (https://github.com/Acters/linux-wallpaperengine)
+  - Created by Acters
+  - Licensed under GPL v3
+  - Provides the core CLI wallpaper engine for Linux
+
+- **Wallpaper Engine** by Kristjan Skutta
+  - The original application and wallpaper collection
+  - Available on Steam: https://store.steampowered.com/app/431960/Wallpaper_Engine/
+
+## Dependencies
+
+This project includes or depends on:
+- Python 3 - PSF License
+- Tkinter - Python Software Foundation License
+- Pillow (PIL) - HPND License
+- wmctrl - GPL License
+- xdotool - GPL License

@@ -1,0 +1,6 @@
+pip==25.3
+pillow==12.1.0
+setuptools==80.9.0
+wheel==0.45.1
+# Generated from existing .venv on 2026-01-06
+# Use this file to reproduce the exact virtualenv used by the developer
