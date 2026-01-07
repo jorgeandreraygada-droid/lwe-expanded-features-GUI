@@ -369,7 +369,7 @@ The `--sound` configuration object contains:
 ```json
 "--sound": {
   "silent": false,              // Mute all wallpaper audio
-  "volume": null,               // Volume level (0-100, null means use default)
+  "volume": null,               // Volume level (0-100, null means use default) *Currently not supported. Ignore in config file.
   "noautomute": false,          // Don't auto-mute when other apps play audio
   "no_audio_processing": false  // Disable audio-reactive features
 }
