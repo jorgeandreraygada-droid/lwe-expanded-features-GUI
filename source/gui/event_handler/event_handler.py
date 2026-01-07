@@ -53,9 +53,6 @@ class EventHandlers:
     def on_above_flag_changed(self):
         """Maneja el cambio del flag above"""
         flags = self.ui['flags_panel']
-        # "remove above prio" marcado = --above debe ser True (para remover always-on-top)
-        # Si el checkbox está marcado (True), --above debe ser True
-        # Si el checkbox NO está marcado (False), --above debe ser False
         self.config["--above"] = flags.above_flag.get()
         self.log(f"[HANDLER] Above flag changed to: {self.config['--above']}")
     
@@ -101,6 +98,67 @@ class EventHandlers:
         update_set_flag(self.config)
         save_config(self.config)
         self.ui['flags_panel'].clear_dynamic_widgets()
+    
+    # ========== Sonido ==========
+    
+    def on_silent_changed(self):
+        """Maneja el cambio del checkbox Silent"""
+        sound_panel = self.ui['sound_panel']
+        self.config["--sound"]["silent"] = sound_panel.silent.get()
+        self.log(f"[HANDLER] Silent mode: {self.config['--sound']['silent']}")
+        save_config(self.config)
+        
+        # Re-aplicar el wallpaper actual si hay uno activo
+        current_wallpaper = self.config.get("--set", {}).get("wallpaper")
+        if current_wallpaper:
+            self.log(f"[HANDLER] Re-applying current wallpaper with new sound settings")
+            if self.ui.get('on_execute'):
+                self.ui['on_execute']()
+    
+    """VOLUME PANEL NOT WORKING. REFER TO CLOSED ISSUE."""
+    # def on_volume_changed(self, value):
+    #    """Maneja el cambio del slider de volumen"""
+    #    sound_panel = self.ui['sound_panel']
+    #    volume = sound_panel.get_volume()
+    #    self.config["--sound"]["volume"] = volume
+    #    self.log(f"[HANDLER] Volume set to: {volume}")
+    #    save_config(self.config)
+        
+        # Re-aplicar el wallpaper actual si hay uno activo
+    #    current_wallpaper = self.config.get("--set", {}).get("wallpaper")
+    #    if current_wallpaper:
+    #        self.log(f"[HANDLER] Re-applying current wallpaper with new volume")
+    #        if self.ui.get('on_execute'):
+    #            self.ui['on_execute']()
+    
+    def on_noautomute_changed(self):
+        """Maneja el cambio del checkbox No Auto Mute"""
+        sound_panel = self.ui['sound_panel']
+        self.config["--sound"]["noautomute"] = sound_panel.noautomute.get()
+        self.log(f"[HANDLER] No auto mute: {self.config['--sound']['noautomute']}")
+        save_config(self.config)
+        
+        # Re-aplicar el wallpaper actual si hay uno activo
+        current_wallpaper = self.config.get("--set", {}).get("wallpaper")
+        if current_wallpaper:
+            self.log(f"[HANDLER] Re-applying current wallpaper with new sound settings")
+            if self.ui.get('on_execute'):
+                self.ui['on_execute']()
+    
+    def on_audio_processing_changed(self):
+        """Maneja el cambio del checkbox No Audio Processing"""
+        sound_panel = self.ui['sound_panel']
+        self.config["--sound"]["no_audio_processing"] = sound_panel.no_audio_processing.get()
+        self.log(f"[HANDLER] No audio processing: {self.config['--sound']['no_audio_processing']}")
+        save_config(self.config)
+        
+        # Re-aplicar el wallpaper actual si hay uno activo
+        current_wallpaper = self.config.get("--set", {}).get("wallpaper")
+        if current_wallpaper:
+            self.log(f"[HANDLER] Re-applying current wallpaper with new sound settings")
+            if self.ui.get('on_execute'):
+                self.ui['on_execute']()
+
     
     # ========== Resolución ==========
     

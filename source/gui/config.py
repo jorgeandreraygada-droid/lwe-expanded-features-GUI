@@ -39,6 +39,12 @@ DEFAULT_CONFIG = {
         "active": False,
         "wallpaper": ""
     },
+    "--sound": {
+        "silent": False,
+        "volume": None,  # None o valor entre 0-100
+        "noautomute": False,
+        "no_audio_processing": False
+    },
     "--favorites": [],
     "--groups": {},
     "--pool": []
@@ -187,6 +193,44 @@ def build_args(config, log_callback=None, show_gui_warning=False):
     if pool and isinstance(pool, list) and len(pool) > 0:
         args.append("--pool")
         args.extend(pool)
+    
+    # 4.5. --sound (si hay configuración de sonido activa)
+    sound_config = config.get("--sound", {})
+    if isinstance(sound_config, dict):
+        sound_flags = []
+        
+        # --silent
+        if sound_config.get("silent", False):
+            sound_flags.append("--silent")
+        
+        # --volume
+        volume = sound_config.get("volume")
+        if volume is not None:
+            # Validar que el volumen esté en el rango correcto
+            try:
+                volume_int = int(volume)
+                if 0 <= volume_int <= 100:
+                    sound_flags.extend(["--volume", str(volume_int)])
+                elif log_callback:
+                    log_callback(f"[WARNING] Invalid volume value: {volume} (must be 0-100)")
+            except (ValueError, TypeError):
+                if log_callback:
+                    log_callback(f"[WARNING] Invalid volume format: {volume}")
+        
+        # --noautomute
+        if sound_config.get("noautomute", False):
+            sound_flags.append("--noautomute")
+        
+        # --no-audio-processing
+        if sound_config.get("no_audio_processing", False):
+            sound_flags.append("--no-audio-processing")
+        
+        # Si hay flags de sonido, añadirlos con el prefijo --sound
+        if sound_flags:
+            args.append("--sound")
+            args.extend(sound_flags)
+            if log_callback:
+                log_callback(f"[CONFIG] Sound flags: {' '.join(sound_flags)}")
 
     # 5. Comando principal (mutuamente excluyente: delay, random, o set)
     delay_config = config.get("--delay", {})

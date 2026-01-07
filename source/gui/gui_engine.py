@@ -11,7 +11,8 @@ from gui.groups import delete_not_working_wallpapers, set_log_callback
 # Componentes UI
 from gui.ui_components.log_area import LogArea 
 from gui.ui_components.directory_controls import DirectoryControls
-from gui.ui_components.flags import FlagsPanel 
+from gui.ui_components.flags import FlagsPanel
+from gui.ui_components.sound_panel import SoundPanel  # ← NUEVO
 from gui.ui_components.gallery_canvas import GalleryCanvas
 from gui.event_handler.event_handler import EventHandlers
 from gui.gallery_view.gallery_manager import GalleryManager
@@ -106,9 +107,13 @@ class WallpaperEngineGUI:
         self.flags_panel = FlagsPanel(self.main_window)
         self.flags_panel.grid(column=1, row=0, sticky="nsew")
         
+        # Sound panel ← NUEVO
+        self.sound_panel = SoundPanel(self.main_window)
+        self.sound_panel.grid(column=1, row=1, sticky="nsew", padx=(5, 0), pady=(5, 0))
+        
         # Gallery canvas
         self.gallery_canvas = GalleryCanvas(self.main_window)
-        self.gallery_canvas.grid(column=0, row=1, columnspan=2, sticky="nsew")
+        self.gallery_canvas.grid(column=0, row=1, columnspan=1, sticky="nsew")
     
     def _create_gallery_view(self):
         """Crea la vista de galería"""
@@ -127,6 +132,7 @@ class WallpaperEngineGUI:
             'main_window': self.main_window,
             'directory_controls': self.directory_controls,
             'flags_panel': self.flags_panel,
+            'sound_panel': self.sound_panel,
             'gallery_canvas': self.gallery_canvas,
             'on_refresh_gallery': lambda: self._refresh_with_scroll_update(),
             'on_execute': self._on_execute
@@ -185,6 +191,22 @@ class WallpaperEngineGUI:
             command=self.log_area.clear
         )
         
+        # Sound panel ← NUEVO
+        self.sound_panel.silent_checkbox.config(
+            command=self.event_handlers.on_silent_changed
+        )
+        """VOlUME PANEL NOT WORKING
+        REFER TO CLOSED ISSUE ON VOLUME PANEL"""
+        # self.sound_panel.volume_slider.config(
+            #command=self.event_handlers.on_volume_changed
+        #)
+        self.sound_panel.noautomute_checkbox.config(
+            command=self.event_handlers.on_noautomute_changed
+        )
+        self.sound_panel.no_audio_processing_checkbox.config(
+            command=self.event_handlers.on_audio_processing_changed
+        )
+        
         # Gallery canvas
         self.gallery_canvas.inner_frame.bind(
             "<Configure>",
@@ -228,6 +250,22 @@ class WallpaperEngineGUI:
             self.log_area.grid_show()
         else:
             self.log_area.grid_remove()
+        
+        # Inicializar valores de sonido
+        sound_config = DEFAULT_CONFIG.get("--sound", {})
+        self.sound_panel.silent.set(sound_config.get("silent", False))
+        self.sound_panel.noautomute.set(sound_config.get("noautomute", False))
+        self.sound_panel.no_audio_processing.set(sound_config.get("no_audio_processing", False))
+        
+        """VOLUMEN PANEL"""
+        """Actualmente el Panel de volumen está ocasionando behaviour muy raro, como por ejemplo ignorar el flag de --above, 
+        crear subprocesos huérfanos, y realmente tampoco está modificando el volumen real. Se mantendrá como un issue cerrado, 
+        ya que no planeo implementar un control de volumen manualmente... (existe el mezclador de audio del entorno gráfico)."""
+        # Volumen (None significa que no se especifica)
+        # volume = sound_config.get("volume")
+        # if volume is not None:
+        #    self.sound_panel.set_volume(volume)
+        
         # Calcular columnas iniciales para la galería según el tamaño estático de thumbnail
         try:
             self.main_window.update_idletasks()
@@ -274,12 +312,11 @@ class WallpaperEngineGUI:
         # Actualizar la configuración con el estado actual del checkbox
         DEFAULT_CONFIG["--above"] = above_value
         
-        # Aplicar el wallpaper con el estado correcto del flag
+        # Aplicar el wallpaper (la config ya tiene el valor correcto de --above)
         self.engine.apply_wallpaper(
             wallpaper_id,
             self.gallery_view.item_list,
-            self.gallery_view.current_view,
-            above=above_value
+            self.gallery_view.current_view
         )
         self._refresh_with_scroll_update()
     
