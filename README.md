@@ -34,7 +34,8 @@
 - ⏱️ **Delay/Timer Mode** - Set wallpapers to change at specific time intervals
 - 🪟 **Window Mode** - Run wallpapers as actual windows with custom resolutions
 - 🔼 **Always-on-Top Control** - Toggle window layering behavior
-- 📊 **Real-time Logging** - Monitor application and engine activity
+- � **Advanced Sound Control** - Manage audio playback with multiple sound options
+- �📊 **Real-time Logging** - Monitor application and engine activity
 - 💾 **Persistent Configuration** - Remember your preferences across sessions
 
 ---
@@ -197,8 +198,70 @@ python3 GUI.py
    - **Window Mode**: Run wallpapers as actual windows
    - **Remove Above Priority**: Remove always-on-top behavior (recommended)
    - **Show Logs**: View real-time application logs
+   - **Sound Control**: Configure audio playback behavior for wallpapers
    - **Json Config**: The provided config.json in [source/core/config_example.json] is merely an example. The real
    config.json is stored at [~/.config/linux-wallpaper-engine-features/]
+
+### Sound Control (--sound)
+
+The Sound Control panel allows you to manage audio playback from wallpapers with several options:
+
+#### Available Sound Options
+
+1. **Silent Mode** (`--silent`)
+   - Completely mutes all audio output from the wallpaper
+   - Useful when you want visual wallpapers without sound
+   - Affects only the wallpaper engine, not your system audio
+
+2. **No Auto Mute** (`--noautomute`)
+   - Prevents the wallpaper from automatically muting its audio when other applications play sound
+   - By default, wallpapers mute themselves when you play music, watch videos, etc.
+   - Enable this to keep wallpaper audio active even when other apps are playing audio
+
+3. **No Audio Processing** (`--no-audio-processing`)
+   - Disables audio-reactive features in wallpapers
+   - Some wallpapers respond to audio input (visualization, color changes, animations based on sound)
+   - Use this option to disable those features and improve performance
+
+#### How Sound Control Works in the GUI
+
+**Panel Behavior**:
+- The Sound Control panel is located in the right sidebar below the Flags panel
+- Each option is presented as an independent checkbox
+- All checkboxes can be used together or independently
+- Settings are automatically saved to `~/.config/linux-wallpaper-engine-features/config.json`
+
+**Event Handling**:
+- When you toggle any sound checkbox, an event handler is triggered
+- The handler updates the configuration file with the new sound settings
+- If a wallpaper is currently active, it is automatically re-applied with the updated audio configuration
+- This ensures sound changes take effect immediately without requiring manual wallpaper reapplication
+
+**Backend Integration**:
+- The [source/gui/event_handler/event_handler.py](source/gui/event_handler/event_handler.py) handles all sound checkbox changes
+- Sound flags are collected and passed to the backend shell script [source/core/main.sh](source/core/main.sh)
+- The `--sound` flag groups all audio-related options and passes them directly to the `linux-wallpaperengine` backend
+- The backend engine interprets and applies these sound parameters to the wallpaper process
+
+**Configuration Storage**:
+Sound settings are stored in your config file under the `--sound` object:
+```json
+"--sound": {
+  "silent": false,
+  "volume": null,
+  "noautomute": false,
+  "no_audio_processing": false
+}
+```
+
+#### Example Usage Scenarios
+
+- **Quiet Desktop**: Enable `Silent` to mute all wallpaper audio while maintaining visual quality
+- **Ambient Audio**: Leave `No Auto Mute` unchecked (default) to let wallpapers auto-mute when you're playing music
+- **Always-On Audio**: Enable `No Auto Mute` if you want wallpaper audio to continue playing in the background regardless of other apps
+- **Performance**: Enable `No Audio Processing` if your CPU usage is high from audio-reactive animations
+- **Custom Combinations**: Mix and match options to suit your preference (e.g., silent + no audio processing for minimal overhead)
+
 ---
 
 ## 🏗️ Architecture
@@ -296,7 +359,21 @@ Configuration is stored in `~/.config/linux-wallpaper-engine-features/config.jso
 - `--above` - Always-on-top flag
 - `--random` - Random mode enabled
 - `--delay` - Auto-change delay settings
+- `--sound` - Audio control settings with options for silent, volume, noautomute, and no_audio_processing
 - `--show-logs` - Log visibility
+
+#### Sound Configuration Options
+
+The `--sound` configuration object contains:
+
+```json
+"--sound": {
+  "silent": false,              // Mute all wallpaper audio
+  "volume": null,               // Volume level (0-100, null means use default)
+  "noautomute": false,          // Don't auto-mute when other apps play audio
+  "no_audio_processing": false  // Disable audio-reactive features
+}
+```
 
 ---
 
