@@ -8,6 +8,7 @@ mkdir -p "$(dirname "$LOG_FILE")"
 POOL=()
 ENGINE=linux-wallpaperengine
 ENGINE_ARGS=()
+SOUND_ARGS=()
 REMOVE_ABOVE="false"
 COMMAND=""
 DELAY=""
@@ -132,10 +133,22 @@ apply_wallpaper() {
     ACTIVE_WIN=$(xdotool getactivewindow 2>/dev/null || echo "")
     log "Active window before launch: ${ACTIVE_WIN:-none}"
 
-    # Lanzamos el NUEVO engine
-    "$ENGINE" "${ENGINE_ARGS[@]}" "$path" &
+    # Construir comando completo con flags de sonido
+    local -a full_args=("${ENGINE_ARGS[@]}")
+    
+    # Añadir flags de sonido si existen
+    if [[ ${#SOUND_ARGS[@]} -gt 0 ]]; then
+        log "Adding sound flags: ${SOUND_ARGS[*]}"
+        full_args+=("${SOUND_ARGS[@]}")
+    fi
+    
+    # Añadir el path del wallpaper al final
+    full_args+=("$path")
+
+    # Lanzamos el engine con todos los argumentos
+    "$ENGINE" "${full_args[@]}" &
     local new_pid=$!
-    log "Engine launched with PID $new_pid, args: $ENGINE ${ENGINE_ARGS[*]} $path"
+    log "Engine launched with PID $new_pid, args: $ENGINE ${full_args[*]}"
 
     # Esperamos a que la NUEVA ventana esté lista (excluyendo las antiguas)
     local win_id
@@ -146,9 +159,7 @@ apply_wallpaper() {
         return
     fi
 
-
     apply_window_flags "$win_id"
-
 
     log "New window ready, now killing old instances"
     if [[ ${#old_windows[@]} -gt 0 ]]; then
@@ -282,6 +293,49 @@ while [[ $# -gt 0 ]]; do
                 log "POOL += $1"
                 POOL+=("$1")
                 shift
+            done
+            ;;
+        --sound)
+            log "Reading SOUND flags..."
+            shift
+            # Leer todos los flags de sonido hasta encontrar otro flag principal (--) o fin de argumentos
+            while [[ $# -gt 0 ]]; do
+                case "$1" in
+                    --silent)
+                        SOUND_ARGS+=("--silent")
+                        log "SOUND_FLAG: --silent (mute background audio)"
+                        shift
+                        ;;
+                    --volume)
+                        if [[ $# -lt 2 ]]; then
+                            log "ERROR: --volume requires a value"
+                            shift
+                            break
+                        fi
+                        SOUND_ARGS+=("--volume" "$2")
+                        log "SOUND_FLAG: --volume $2"
+                        shift 2
+                        ;;
+                    --noautomute)
+                        SOUND_ARGS+=("--noautomute")
+                        log "SOUND_FLAG: --noautomute (don't mute when other apps play audio)"
+                        shift
+                        ;;
+                    --no-audio-processing)
+                        SOUND_ARGS+=("--no-audio-processing")
+                        log "SOUND_FLAG: --no-audio-processing (disable audio reactive features)"
+                        shift
+                        ;;
+                    --*)
+                        # Encontramos otro flag principal, salir del loop de sonido
+                        log "End of sound flags, found: $1"
+                        break
+                        ;;
+                    *)
+                        log "WARNING: Unknown sound flag: $1 (ignoring)"
+                        shift
+                        ;;
+                esac
             done
             ;;
         --stop)
