@@ -32,16 +32,24 @@ class WallpaperLoader:
     def load_preview(self, wallpaper_folder):
         """Carga la imagen de preview de un wallpaper"""
         if wallpaper_folder in self.preview_cache:
-            return self.preview_cache[wallpaper_folder]
+            # Return the PhotoImage from the tuple (img, tk_img)
+            return self.preview_cache[wallpaper_folder][1]
         
         for name in ("preview.jpg", "preview.png", "preview.gif"):
             full_path = path.join(wallpaper_folder, name)
             if path.exists(full_path):
-                img = Image.open(full_path)
-                img.thumbnail(THUMB_SIZE)
-                tk_img = ImageTk.PhotoImage(img)
-                self.preview_cache[wallpaper_folder] = tk_img
-                return tk_img
+                try:
+                    img = Image.open(full_path)
+                    img.thumbnail(THUMB_SIZE)
+                    tk_img = ImageTk.PhotoImage(image=img)
+                    # Store BOTH PIL Image and PhotoImage to prevent garbage collection
+                    # PIL Image must stay in memory for PhotoImage to work
+                    self.preview_cache[wallpaper_folder] = (img, tk_img)
+                    return tk_img
+                except Exception as e:
+                    # Log error but don't crash - continue to next format
+                    print(f"[WARNING] Error loading preview {full_path}: {e}")
+                    continue
         return None
     
     def clear_cache(self):

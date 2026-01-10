@@ -1,8 +1,12 @@
 #!/bin/bash
 # lwe-window-manager.sh
 # Window manager helper script for linux-wallpaper-engine GUI
-# This script runs on the host system to manage windows when LWE runs in Flatpak
-# It provides robust window manipulation that bypasses sandbox limitations
+# This script provides robust window manipulation
+# When run inside Flatpak, wmctrl/xdotool are bundled and can access host X11 via socket forwarding
+# When run natively, it uses system wmctrl/xdotool
+#
+# The key insight: wmctrl and xdotool bundled in Flatpak can access the host X11 display
+# through the --socket=x11 permission without needing flatpak-spawn --host
 
 set -euo pipefail
 

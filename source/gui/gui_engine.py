@@ -47,14 +47,18 @@ class WallpaperEngineGUI:
         # Cargar configuración
         self._load_config()
         
-        # Inicializar componentes core
+        # Create log area FIRST - needed for logging callbacks
+        self.log_area = LogArea(self.main_window)
+        self.log_area.grid(column=0, row=3, columnspan=2, sticky="nsew")
+        
+        # Inicializar componentes core (now logging will work)
         self.loader = WallpaperLoader()
         self.engine = EngineController(DEFAULT_CONFIG, self._log)
         
         # Configurar logging para grupos
         set_log_callback(self._log)
         
-        # Crear UI
+        # Crear UI (skip log_area since already created)
         self._create_ui()
         
         # Crear GalleryView
@@ -94,10 +98,9 @@ class WallpaperEngineGUI:
 
     
     def _create_ui(self):
-        """Crea todos los componentes de la UI"""
-        # Log area
-        self.log_area = LogArea(self.main_window)
-        self.log_area.grid(column=0, row=3, columnspan=2, sticky="nsew")
+        """Crea todos los componentes de la UI (excepto log_area que se crea antes)"""
+        # Log area is already created during __init__ to ensure logging works
+        # before other components are initialized
         
         # Directory controls
         self.directory_controls = DirectoryControls(self.main_window)

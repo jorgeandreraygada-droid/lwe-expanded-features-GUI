@@ -48,10 +48,14 @@ finish-args:
   - --talk-name=org.freedesktop.ScreenSaver
   - --talk-name=org.freedesktop.Notifications
   - --talk-name=org.freedesktop.PowerManagement
+  - --talk-name=org.freedesktop.Flatpak
+  # Required for flatpak-spawn --host to work
+  - --system-talk-name=org.freedesktop.DBus
   # Environment
   - --env=DBUS_FATAL_WARNINGS=0
   - --env=XAUTHORITY=$HOME/.Xauthority
   - --socket=session-bus
+  - --socket=system-bus
 
 modules:
   # [Same as standard manifest - see com.github.mauefrod.LWEExpandedFeaturesGUI.yml]
@@ -294,6 +298,8 @@ modules:
       - test -f README.md && cp README.md /app/share/lwe-gui/ || true
       - chmod +x /app/share/lwe-gui/source/core/main.sh || true
       - chmod +x /app/share/lwe-gui/source/core/lwe-state-manager.sh || true
+      - chmod +x /app/share/lwe-gui/source/core/window-monitor.sh || true
+      - chmod +x /app/share/lwe-gui/source/core/async-window-fixer.sh || true
       - test -f /app/share/lwe-gui/source/run.sh && chmod +x /app/share/lwe-gui/source/run.sh || true
       - install -Dm755 lwe-gui-wrapper.sh /app/bin/lwe-gui
       - install -Dm755 lwe-window-manager.sh /app/bin/lwe-window-manager.sh

@@ -16,18 +16,56 @@ mkdir -p "$DATA_DIR" "$CONFIG_DIR"
 # Detectar si estamos en Flatpak
 if [ -f /.flatpak-info ]; then
     IN_FLATPAK=true
-    # wmctrl runs the host's wmctrl command via flatpak-spawn --host when invoked from inside a Flatpak.
-    wmctrl() { flatpak-spawn --host wmctrl "$@"; }
-    # xdotool executes the host's `xdotool` via `flatpak-spawn --host` with the given arguments.
-    xdotool() { flatpak-spawn --host xdotool "$@"; }
+    # Get Flatpak app ID from environment or metadata
+    FLATPAK_APP_ID="${FLATPAK_ID:-com.github.mauefrod.LWEExpandedFeaturesGUI}"
+    # Inside Flatpak, wmctrl and xdotool are available locally (bundled in the Flatpak)
+    # They can access the host's X11 through the X11 socket forwarding
+    # NO need for flatpak-spawn --host; use local tools instead
+    wmctrl() { command wmctrl "$@"; }
+    xdotool() { command xdotool "$@"; }
     # Window manager script for robust window operations
     WINDOW_MANAGER="/app/bin/lwe-window-manager.sh"
-    run_window_manager() { flatpak-spawn --host "$WINDOW_MANAGER" "$@"; }
+    run_window_manager() { "$WINDOW_MANAGER" "$@"; }
 else
     IN_FLATPAK=false
+    FLATPAK_APP_ID=""
     WINDOW_MANAGER="/usr/local/bin/lwe-window-manager.sh"
     run_window_manager() { "$WINDOW_MANAGER" "$@"; }
 fi
+
+# Diagnostic function to test if wmctrl works
+test_wmctrl() {
+    if wmctrl -lx &>/dev/null; then
+        return 0
+    else
+        # More detailed diagnostics - capture actual error
+        local wmctrl_error
+        wmctrl_error=$(wmctrl -lx 2>&1 || true)
+        if [[ -n "$wmctrl_error" ]]; then
+            log "DEBUG: wmctrl error output: $wmctrl_error"
+        else
+            log "DEBUG: wmctrl returned empty output (no windows or permission denied)"
+        fi
+        
+        # Check if flatpak-spawn is available
+        if [[ "$IN_FLATPAK" == "true" ]]; then
+            if command -v flatpak-spawn >/dev/null 2>&1; then
+                log "DEBUG: flatpak-spawn is available in PATH"
+                # Try calling it directly to see if it works
+                local spawn_test
+                spawn_test=$(flatpak-spawn --host echo "OK" 2>&1 || true)
+                if [[ "$spawn_test" == "OK" ]]; then
+                    log "DEBUG: flatpak-spawn --host is working"
+                else
+                    log "DEBUG: flatpak-spawn --host test failed: $spawn_test"
+                fi
+            else
+                log "DEBUG: flatpak-spawn NOT found in PATH"
+            fi
+        fi
+        return 1
+    fi
+}
 
 POOL=()
 ENGINE=linux-wallpaperengine
@@ -125,53 +163,66 @@ kill_previous_engine() {
 cmd_stop() {
     log "Stopping ALL wallpaper engine processes and loops"
 
-    # First, get windows to close them gracefully
-    local -a engine_windows
+    # First, try to close windows gracefully (if wmctrl works)
+    local -a engine_windows=()
     mapfile -t engine_windows < <(get_engine_windows)
     
-    # Close windows gracefully first
-    for win in "${engine_windows[@]:-}"; do
-        if [[ -n "$win" ]]; then
-            log "Closing window: $win"
-            if run_window_manager "close-window" "$win" &>/dev/null; then
-                log "Successfully closed window $win"
-            else
-                # Fallback to direct wmctrl
-                wmctrl -i -c "$win" 2>/dev/null || log "Warning: Could not close window $win"
+    # Close windows gracefully first (skip empty/none values)
+    if [[ ${#engine_windows[@]} -gt 0 ]]; then
+        for win in "${engine_windows[@]}"; do
+            if [[ -n "$win" ]] && [[ "$win" != "none" ]]; then
+                log "Attempting to close window: $win"
+                if run_window_manager "close-window" "$win" &>/dev/null; then
+                    log "Successfully closed window $win"
+                else
+                    # Fallback to direct wmctrl
+                    wmctrl -i -c "$win" 2>/dev/null || true
+                fi
             fi
-        fi
-    done
+        done
+    else
+        log "No windows to close (array empty)"
+    fi
     
     sleep 1
 
     # Kill engine processes (aggressive approach)
     log "Force killing engine processes"
     pkill -9 -f linux-wallpaperengine 2>/dev/null || true
-    pkill -9 -f "linux-wallpaperengine" 2>/dev/null || true
-
+    
     # Kill loop process if exists
     if [[ -f "$PID_FILE" ]]; then
-        local loop_pid=$(cat "$PID_FILE" 2>/dev/null || echo "")
+        local loop_pid
+        loop_pid=$(cat "$PID_FILE" 2>/dev/null || echo "")
         if [[ -n "$loop_pid" ]]; then
             log "Killing loop process with PID: $loop_pid"
-            kill -9 "$loop_pid" 2>/dev/null || true
-            sleep 0.5
+            # Try TERM first, then KILL
+            kill -TERM "$loop_pid" 2>/dev/null || true
+            sleep 0.2
+            if kill -0 "$loop_pid" 2>/dev/null; then
+                log "Loop process still alive, using SIGKILL"
+                kill -9 "$loop_pid" 2>/dev/null || true
+            fi
+            sleep 0.3
             # Verify it's dead
             if kill -0 "$loop_pid" 2>/dev/null; then
-                log "WARNING: Loop process $loop_pid still alive, trying more aggressive approach"
-                pkill -9 -f "main.sh" 2>/dev/null || true
+                log "ERROR: Loop process $loop_pid still alive after SIGKILL, this should not happen"
+                # Last resort: pkill by exact PID
+                pkill -9 -P "$loop_pid" 2>/dev/null || true
+            else
+                log "Loop process successfully killed"
             fi
         fi
         rm -f "$PID_FILE"
     fi
     
-    # Final cleanup: kill any remaining main.sh instances
+    # Final cleanup: kill any remaining main.sh instances (the loop script)
     pkill -9 -f "bash.*main.sh" 2>/dev/null || true
     
     # Clear state files
     rm -f "$PREV_WINDOWS_FILE" "$ENGINE_STATE_FILE.pid" 2>/dev/null || true
     
-    log "Stop command completed"
+    log "Stop command completed - all processes should be terminated"
 }
 
 
@@ -190,9 +241,12 @@ wait_for_window() {
     local wmctrl_works=true
     
     # Quick test: does wmctrl work?
-    if ! wmctrl -lx &>/dev/null; then
+    if ! test_wmctrl; then
         log "WARNING: wmctrl not working (possible Flatpak sandbox restriction)"
+        log "DEBUG: Flatpak mode: $IN_FLATPAK | flatpak-spawn available: $(command -v flatpak-spawn >/dev/null 2>&1 && echo yes || echo no)"
         wmctrl_works=false
+    else
+        log "DEBUG: wmctrl is working correctly"
     fi
     
     for i in {1..200}; do
@@ -204,7 +258,7 @@ wait_for_window() {
             # Fallback: if wmctrl doesn't work, just wait a bit and assume window is ready
             # This is a workaround for strict Flatpak sandboxes
             if [[ $i -ge 20 ]]; then
-                log "FLATPAK FALLBACK: Assuming window created after delay (wmctrl unavailable)"
+                log "FLATPAK FALLBACK: Assuming window created after delay (wmctrl unavailable after $((i*50))ms)"
                 echo ""
                 return
             fi
@@ -312,6 +366,27 @@ apply_wallpaper() {
     "$ENGINE" "${full_args[@]}" &
     local new_pid=$!
     log "Engine launched with PID $new_pid, args: $ENGINE ${full_args[*]}"
+    
+    # Start background monitor to continuously try to apply window flags
+    # This is a workaround for Flatpak restrictions on wmctrl
+    # Uses flatpak-enter if available to access sandbox namespace
+    if [[ "$REMOVE_ABOVE" == "true" ]]; then
+        local monitor_script
+        monitor_script="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/window-monitor.sh"
+        if [[ -f "$monitor_script" ]]; then
+            log "Starting background window monitor (REMOVE_ABOVE=true, Flatpak=$IN_FLATPAK)"
+            if [[ "$IN_FLATPAK" == "true" ]]; then
+                # Pass Flatpak app ID so monitor can use flatpak-enter
+                bash "$monitor_script" "$new_pid" "$REMOVE_ABOVE" "$LOG_FILE" "$FLATPAK_APP_ID" &
+            else
+                bash "$monitor_script" "$new_pid" "$REMOVE_ABOVE" "$LOG_FILE" &
+            fi
+            local monitor_pid=$!
+            log "Window monitor started with PID $monitor_pid"
+        else
+            log "WARNING: window-monitor.sh not found at $monitor_script"
+        fi
+    fi
 
     # Esperamos a que la NUEVA ventana esté lista (excluyendo las antiguas)
     local win_id

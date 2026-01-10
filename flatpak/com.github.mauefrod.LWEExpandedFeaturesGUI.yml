@@ -29,15 +29,17 @@ finish-args:
   - --socket=pulseaudio
   - --device=dri
   - --talk-name=org.freedesktop.Notifications
-  # Additional DBus permissions for better window/process detection in Flatpak
+  # DBus permissions for window/process detection in Flatpak
   - --talk-name=org.freedesktop.DBus
   - --talk-name=org.freedesktop.ScreenSaver
-  # Permissions needed for window control (wmctrl, xdotool)
   - --talk-name=org.freedesktop.Flatpak
+  # Required for flatpak-spawn --host to work
+  - --system-talk-name=org.freedesktop.DBus
   - --env=DBUS_FATAL_WARNINGS=0
   - --filesystem=/tmp
   - --env=XAUTHORITY=$HOME/.Xauthority
   - --socket=session-bus
+  - --socket=system-bus
   # Allow spawning host commands (wmctrl, xdotool)
   # This is necessary for the flags --delay, --random, --above to work properly
   - --allow=devel
@@ -280,6 +282,8 @@ modules:
       - test -f README.md && cp README.md /app/share/lwe-gui/ || true
       - chmod +x /app/share/lwe-gui/source/core/main.sh || true
       - chmod +x /app/share/lwe-gui/source/core/lwe-state-manager.sh || true
+      - chmod +x /app/share/lwe-gui/source/core/window-monitor.sh || true
+      - chmod +x /app/share/lwe-gui/source/core/async-window-fixer.sh || true
       - test -f /app/share/lwe-gui/source/run.sh && chmod +x /app/share/lwe-gui/source/run.sh || true
       - install -Dm755 lwe-gui-wrapper.sh /app/bin/lwe-gui
       - install -Dm755 lwe-window-manager.sh /app/bin/lwe-window-manager.sh
