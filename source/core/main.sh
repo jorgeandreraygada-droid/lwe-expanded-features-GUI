@@ -76,15 +76,16 @@ get_engine_windows() {
 
 save_engine_state() {
     local pid="$1"
-    local windows="$2"
+    shift
+    local -a windows=("$@")
     
     # Save PID for later reference
     echo "$pid" > "$ENGINE_STATE_FILE.pid"
     
-    # Save windows for fallback detection
-    echo "$windows" > "$PREV_WINDOWS_FILE"
+    # Save windows for fallback detection (one-per-line)
+    printf "%s\n" "${windows[@]}" > "$PREV_WINDOWS_FILE"
     
-    log "Engine state saved (PID: $pid)"
+    log "Engine state saved (PID: $pid, windows: ${windows[*]:-none})"
 }
 
 
@@ -196,7 +197,7 @@ wait_for_window() {
         sleep 0.05
     done
 
-    log "ERROR: No se pudo encontrar la ventana nueva del engine (timeout after ~10s)"
+    log "ERROR: Could not find new engine window (timeout after ~10s)"
     echo ""
 }
 
@@ -272,7 +273,7 @@ apply_wallpaper() {
     if [[ -z "$win_id" ]]; then
         log "WARNING: No window found for new engine (may be hidden or in Flatpak sandbox)"
         # Store state for future reference even if we can't detect window
-        save_engine_state "$new_pid" "${old_windows[*]:-none}"
+        save_engine_state "$new_pid" "${old_windows[@]:-none}"
         # In Flatpak, the process will still be running even if we can't detect the window
         log "Proceeding without window detection (process running with PID $new_pid)"
         return

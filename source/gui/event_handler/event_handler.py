@@ -238,5 +238,9 @@ class EventHandlers:
         self.log("[GUI] Stopping engine and loops")
         script_path = path.join(path.dirname(__file__), "..", "..", "core", "main.sh")
         proc = Popen([script_path, "--stop"])
-        proc.wait()  # Wait for process to complete
-        self.log("[GUI] Engine stop command completed")
+        # Use a thread to wait and log completion without blocking GUI
+        import threading
+        def wait_and_log():
+            proc.wait()
+            self.log("[GUI] Engine stop command completed")
+        threading.Thread(target=wait_and_log, daemon=True).start()

@@ -29,26 +29,37 @@ EOF
     fi
 }
 
+# Escape string for JSON (basic: escape backslashes and quotes)
+json_escape() {
+    local str="$1"
+    str="${str//\\/\\\\}"  # Escape backslashes first
+    str="${str//\"/\\\"}"  # Escape double quotes
+    printf '%s' "$str"
+}
+
 # Save current engine state
 save_state() {
     local pid="$1"
     local windows="${2:-}"
     local wallpaper="${3:-}"
     
-    local timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    local timestamp
+    timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    local escaped_wallpaper
+    escaped_wallpaper=$(json_escape "$wallpaper")
     
     # Simple JSON write (bash-only, no jq dependency)
     cat > "$ENGINE_STATE" <<EOF
 {
   "last_pid": $pid,
-  "last_windows": [$(printf '"%s"' ${windows[@]:-})],
-  "last_wallpaper": "$wallpaper",
+  "last_windows": [$(printf '"%s"' "${windows:-}")],
+  "last_wallpaper": "$escaped_wallpaper",
   "last_execution": "$timestamp",
   "in_flatpak": $([ -f /.flatpak-info ] && echo "true" || echo "false")
 }
 EOF
     
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] State saved: PID=$pid, Windows=${windows[@]:-none}"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] State saved: PID=$pid, Windows=${windows:-none}"
 }
 
 # Get last engine PID

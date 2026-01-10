@@ -279,6 +279,7 @@ modules:
       - test -f LICENSE && cp LICENSE /app/share/lwe-gui/ || true
       - test -f README.md && cp README.md /app/share/lwe-gui/ || true
       - chmod +x /app/share/lwe-gui/source/core/main.sh || true
+      - chmod +x /app/share/lwe-gui/source/core/lwe-state-manager.sh || true
       - test -f /app/share/lwe-gui/source/run.sh && chmod +x /app/share/lwe-gui/source/run.sh || true
       - install -Dm755 lwe-gui-wrapper.sh /app/bin/lwe-gui
       - install -Dm644 com.github.mauefrod.LWEExpandedFeaturesGUI.desktop /app/share/applications/com.github.mauefrod.LWEExpandedFeaturesGUI.desktop
