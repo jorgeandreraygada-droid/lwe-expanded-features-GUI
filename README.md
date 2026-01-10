@@ -258,8 +258,8 @@ python3 GUI.py
    - **Sound Control**: Configure audio playback behavior for wallpapers
    - **Json Config**: The provided config.json in [source/core/config_example.json] is merely an example. The real
    config.json is stored at [~/.config/linux-wallpaper-engine-features/]
----
 </details>
+---
 ## 🏗️ Architecture
 
 <details>
