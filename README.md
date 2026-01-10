@@ -395,7 +395,11 @@ Configuration is stored in `~/.config/linux-wallpaper-engine-features/config.jso
 - `--show-logs` - Log visibility
 
 ---
+
+
 </details>
+
+
 ---
 
 ## 🙏 Credits & Attribution
