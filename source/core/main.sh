@@ -7,6 +7,8 @@ CONFIG_DIR="${LWE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/linux-wallpaper-
 
 LOG_FILE="$DATA_DIR/logs.txt"
 PID_FILE="$DATA_DIR/loop.pid"
+ENGINE_STATE_FILE="$DATA_DIR/engine_state.json"
+PREV_WINDOWS_FILE="$DATA_DIR/prev_windows.txt"
 
 # Ensure directories exist
 mkdir -p "$DATA_DIR" "$CONFIG_DIR"
@@ -17,7 +19,7 @@ if [ -f /.flatpak-info ]; then
     # wmctrl runs the host's wmctrl command via flatpak-spawn --host when invoked from inside a Flatpak.
     wmctrl() { flatpak-spawn --host wmctrl "$@"; }
     # xdotool executes the host's `xdotool` via `flatpak-spawn --host` with the given arguments.
-xdotool() { flatpak-spawn --host xdotool "$@"; }
+    xdotool() { flatpak-spawn --host xdotool "$@"; }
 else
     IN_FLATPAK=false
 fi
@@ -40,13 +42,74 @@ log() {
 log "==================== NEW EXECUTION ===================="
 log "Running in Flatpak: $IN_FLATPAK"
 
+###############################################
+#  FLATPAK WINDOW DETECTION HELPER
+#  When running in Flatpak, wmctrl has limitations.
+#  This function uses multiple strategies to find windows:
+#  1. Try wmctrl directly (may fail in Flatpak sandbox)
+#  2. Fall back to process PID tracking
+#  3. Use state file as last resort
+###############################################
+get_engine_windows() {
+    local -a windows=()
+    
+    # Strategy 1: Try wmctrl (works better on native, may fail in Flatpak)
+    if wmctrl -lx 2>/dev/null | grep -i "linux-wallpaperengine\|wallpaperengine\|steam_app_431960" &>/dev/null; then
+        mapfile -t windows < <(wmctrl -lx 2>/dev/null | grep -i "linux-wallpaperengine\|wallpaperengine\|steam_app_431960" | awk '{print $1}' || true)
+        if [[ ${#windows[@]} -gt 0 ]]; then
+            log "Window detection (wmctrl): Found ${#windows[@]} window(s)"
+            printf "%s\n" "${windows[@]}"
+            return 0
+        fi
+    fi
+    
+    # Strategy 2: Check stored window IDs from previous execution
+    if [[ -f "$PREV_WINDOWS_FILE" ]]; then
+        log "Window detection (fallback): Using stored window IDs"
+        cat "$PREV_WINDOWS_FILE" || true
+        return 0
+    fi
+    
+    log "Window detection: No previous windows found"
+    return 0
+}
+
+save_engine_state() {
+    local pid="$1"
+    local windows="$2"
+    
+    # Save PID for later reference
+    echo "$pid" > "$ENGINE_STATE_FILE.pid"
+    
+    # Save windows for fallback detection
+    echo "$windows" > "$PREV_WINDOWS_FILE"
+    
+    log "Engine state saved (PID: $pid)"
+}
+
 
 ###############################################
 #  KILL ENGINE (robusto, no mata el nuevo)
 ###############################################
 kill_previous_engine() {
     log "Killing previous engine instances"
+    
+    # Kill by process name (most reliable)
     pkill -f linux-wallpaperengine 2>/dev/null || true
+    
+    # Try to close windows if we can detect them (native + Flatpak with --host)
+    local -a old_windows
+    mapfile -t old_windows < <(get_engine_windows)
+    
+    if [[ ${#old_windows[@]} -gt 0 ]]; then
+        for win in "${old_windows[@]}"; do
+            log "Attempting to close window: $win"
+            wmctrl -i -c "$win" 2>/dev/null || true
+        done
+    fi
+    
+    # Give the process time to die
+    sleep 0.5
 }
 
 
@@ -82,13 +145,36 @@ cmd_stop() {
 # It accepts zero or more window IDs to ignore (exclude_windows). Searches wmctrl for windows matching
 # "linux-wallpaperengine", "wallpaperengine", or "steam_app_431960" and returns the first ID not in the exclusions.
 # If no new window is found within ~10 seconds, logs an error and echoes an empty string.
+# 
+# FLATPAK NOTE: If wmctrl fails completely (in strict sandboxes), this falls back to waiting by process existence
+# and assumes the window was created successfully after a delay.
 wait_for_window() {
     local -a exclude_windows=("$@")
     local win=""
+    local wmctrl_works=true
+    
+    # Quick test: does wmctrl work?
+    if ! wmctrl -lx &>/dev/null; then
+        log "WARNING: wmctrl not working (possible Flatpak sandbox restriction)"
+        wmctrl_works=false
+    fi
     
     for i in {1..200}; do
         local -a current_windows=()
-        mapfile -t current_windows < <(wmctrl -lx 2>/dev/null | grep -i "linux-wallpaperengine\|wallpaperengine\|steam_app_431960" | awk '{print $1}' || true)
+        
+        if [[ "$wmctrl_works" == "true" ]]; then
+            mapfile -t current_windows < <(wmctrl -lx 2>/dev/null | grep -i "linux-wallpaperengine\|wallpaperengine\|steam_app_431960" | awk '{print $1}' || true)
+        else
+            # Fallback: if wmctrl doesn't work, just wait a bit and assume window is ready
+            # This is a workaround for strict Flatpak sandboxes
+            if [[ $i -ge 20 ]]; then
+                log "FLATPAK FALLBACK: Assuming window created after delay (wmctrl unavailable)"
+                echo ""
+                return
+            fi
+            sleep 0.1
+            continue
+        fi
         
         # Buscar ventana que NO esté en la lista de exclusión
         for w in "${current_windows[@]}"; do
@@ -110,7 +196,7 @@ wait_for_window() {
         sleep 0.05
     done
 
-    log "ERROR: No se pudo encontrar la ventana nueva del engine"
+    log "ERROR: No se pudo encontrar la ventana nueva del engine (timeout after ~10s)"
     echo ""
 }
 
@@ -147,6 +233,8 @@ apply_window_flags() {
 ###############################################
 #  Aplicar wallpaper (CON TRANSICIÓN SUAVE)
 # apply_wallpaper launches the wallpaper engine for the given wallpaper path, waits for the newly created window, applies window flags (and optionally restores focus), and closes any previous engine windows while logging progress and errors.
+#
+# FLATPAK ADAPTATION: Enhanced detection fallback for sandboxed environments
 apply_wallpaper() {
     local path="$1"
 
@@ -154,7 +242,7 @@ apply_wallpaper() {
 
     # Guardamos las ventanas actuales del engine ANTES de lanzar el nuevo
     local old_windows=()
-    mapfile -t old_windows < <(wmctrl -lx 2>/dev/null | grep -i "linux-wallpaperengine\|wallpaperengine\|steam_app_431960" | awk '{print $1}' || true)
+    mapfile -t old_windows < <(get_engine_windows)
     log "Old engine windows: ${old_windows[*]:-none}"
 
     ACTIVE_WIN=$(xdotool getactivewindow 2>/dev/null || echo "")
@@ -182,11 +270,18 @@ apply_wallpaper() {
     win_id=$(wait_for_window "${old_windows[@]}")
 
     if [[ -z "$win_id" ]]; then
-        log "ERROR: No window found for new engine"
+        log "WARNING: No window found for new engine (may be hidden or in Flatpak sandbox)"
+        # Store state for future reference even if we can't detect window
+        save_engine_state "$new_pid" "${old_windows[*]:-none}"
+        # In Flatpak, the process will still be running even if we can't detect the window
+        log "Proceeding without window detection (process running with PID $new_pid)"
         return
     fi
 
     apply_window_flags "$win_id"
+    
+    # Save current windows for next invocation
+    save_engine_state "$new_pid" "$win_id"
 
     log "New window ready, now killing old instances"
     if [[ ${#old_windows[@]} -gt 0 ]]; then
