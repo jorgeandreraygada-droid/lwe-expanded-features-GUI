@@ -56,6 +56,8 @@ finish-args:
   - --env=XAUTHORITY=$HOME/.Xauthority
   - --socket=session-bus
   - --socket=system-bus
+  # Steam Flatpak Install
+  - --filesystem=~/.var/app/com.valvesoftware.Steam:ro
 
 modules:
   # [Same as standard manifest - see com.github.mauefrod.LWEExpandedFeaturesGUI.yml]
