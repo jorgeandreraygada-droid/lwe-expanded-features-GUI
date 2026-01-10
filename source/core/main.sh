@@ -16,13 +16,14 @@ mkdir -p "$DATA_DIR" "$CONFIG_DIR"
 # Detectar si estamos en Flatpak
 if [ -f /.flatpak-info ]; then
     IN_FLATPAK=true
-    # wmctrl runs the host's wmctrl command via flatpak-spawn --host when invoked from inside a Flatpak.
-    wmctrl() { flatpak-spawn --host wmctrl "$@"; }
-    # xdotool executes the host's `xdotool` via `flatpak-spawn --host` with the given arguments.
-    xdotool() { flatpak-spawn --host xdotool "$@"; }
+    # Inside Flatpak, wmctrl and xdotool are available locally (bundled in the Flatpak)
+    # They can access the host's X11 through the X11 socket forwarding
+    # NO need for flatpak-spawn --host; use local tools instead
+    wmctrl() { command wmctrl "$@"; }
+    xdotool() { command xdotool "$@"; }
     # Window manager script for robust window operations
     WINDOW_MANAGER="/app/bin/lwe-window-manager.sh"
-    run_window_manager() { flatpak-spawn --host "$WINDOW_MANAGER" "$@"; }
+    run_window_manager() { "$WINDOW_MANAGER" "$@"; }
 else
     IN_FLATPAK=false
     WINDOW_MANAGER="/usr/local/bin/lwe-window-manager.sh"
@@ -34,11 +35,30 @@ test_wmctrl() {
     if wmctrl -lx &>/dev/null; then
         return 0
     else
-        # More detailed diagnostics
-        local wmctrl_test
-        wmctrl_test=$(wmctrl -lx 2>&1 || true)
-        if [[ -n "$wmctrl_test" ]]; then
-            log "DEBUG: wmctrl output: $wmctrl_test"
+        # More detailed diagnostics - capture actual error
+        local wmctrl_error
+        wmctrl_error=$(wmctrl -lx 2>&1 || true)
+        if [[ -n "$wmctrl_error" ]]; then
+            log "DEBUG: wmctrl error output: $wmctrl_error"
+        else
+            log "DEBUG: wmctrl returned empty output (no windows or permission denied)"
+        fi
+        
+        # Check if flatpak-spawn is available
+        if [[ "$IN_FLATPAK" == "true" ]]; then
+            if command -v flatpak-spawn >/dev/null 2>&1; then
+                log "DEBUG: flatpak-spawn is available in PATH"
+                # Try calling it directly to see if it works
+                local spawn_test
+                spawn_test=$(flatpak-spawn --host echo "OK" 2>&1 || true)
+                if [[ "$spawn_test" == "OK" ]]; then
+                    log "DEBUG: flatpak-spawn --host is working"
+                else
+                    log "DEBUG: flatpak-spawn --host test failed: $spawn_test"
+                fi
+            else
+                log "DEBUG: flatpak-spawn NOT found in PATH"
+            fi
         fi
         return 1
     fi
