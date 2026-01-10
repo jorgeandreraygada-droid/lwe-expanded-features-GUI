@@ -1,0 +1,30 @@
+# Testing Dependencies for LWE Expanded Features GUI
+
+# Core Testing Framework
+pytest>=7.0.0
+pytest-cov>=4.0.0
+pytest-mock>=3.10.0
+pytest-xdist>=3.0.0
+pytest-timeout>=2.1.0
+
+# Code Quality
+coverage>=7.0.0
+coverage-badge>=1.1.0
+
+# Mocking & Fixtures
+mock>=4.0.3
+faker>=15.0.0
+
+# Reporting
+pytest-html>=3.1.0
+junit-xml>=1.9
+
+# Development
+ipdb>=0.13.0
+ipython>=8.0.0
+
+# Optional: For parallel testing
+xdist>=3.0.0
+
+# Optional: For integration tests
+requests>=2.28.0

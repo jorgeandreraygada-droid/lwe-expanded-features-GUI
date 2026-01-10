@@ -16,9 +16,12 @@ build-options:
   cflags: "-O1"  # Use -O1 instead of -O2/-O3 to reduce compile time and memory
 
 finish-args:
+  # X11 socket for window manipulation (CRITICAL for --above flag)
   - --socket=x11
   - --share=ipc
   - --socket=wayland
+  - --env=DISPLAY=:0
+  # Filesystem access
   - --filesystem=xdg-config/linux-wallpaper-engine-features:create
   - --filesystem=xdg-data/linux-wallpaper-engine-features:create
   - --share=network
@@ -26,21 +29,23 @@ finish-args:
   - --filesystem=~/.local/share/Steam:ro
   # Additional filesystem access needed for wmctrl/xdotool to work
   - --filesystem=home:ro
+  - --filesystem=/tmp
+  - --env=XAUTHORITY=$HOME/.Xauthority
+  # Audio
   - --socket=pulseaudio
   - --device=dri
+  # DBus access for window detection and notifications
   - --talk-name=org.freedesktop.Notifications
-  # DBus permissions for window/process detection in Flatpak
   - --talk-name=org.freedesktop.DBus
   - --talk-name=org.freedesktop.ScreenSaver
   - --talk-name=org.freedesktop.Flatpak
-  # Required for flatpak-spawn --host to work
+  # System DBus for advanced window operations
   - --system-talk-name=org.freedesktop.DBus
   - --env=DBUS_FATAL_WARNINGS=0
-  - --filesystem=/tmp
-  - --env=XAUTHORITY=$HOME/.Xauthority
+  # Session and system bus sockets for inter-process communication
   - --socket=session-bus
   - --socket=system-bus
-  # Allow spawning host commands (wmctrl, xdotool)
+  # Development mode for additional capabilities (wmctrl/xdotool window manipulation)
   # This is necessary for the flags --delay, --random, --above to work properly
   - --allow=devel
 

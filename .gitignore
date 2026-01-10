@@ -71,12 +71,8 @@ source/core/config.json
 flatpak/*.tar.bz2
 
 # Documentation and changelog files (generated, not tracked)
-FLATPAK_WORKAROUND.md
-FLATPAK_SOLUTION_SUMMARY.md
-FLATPAK_TESTING_GUIDE.md
-FUTURE_IMPROVEMENTS.md
-IMPLEMENTATION_REPORT.md
-ARCHITECTURE_DIAGRAM.md
-QUICK_REFERENCE.md
-FLATPAK_BUILD_GUIDE.md
+# Ignore all .md files except README.md
+*.md
+!README.md
+
 # End of file

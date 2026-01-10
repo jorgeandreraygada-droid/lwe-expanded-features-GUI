@@ -1,0 +1,99 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.8', '3.9', '3.10', '3.11']
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install BATS
+      run: sudo apt-get update && sudo apt-get install -y bats
+    
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements-test.txt
+    
+    - name: Install application dependencies
+      run: pip install -r requirements.txt
+    
+    - name: Run Python tests
+      run: |
+        export PYTHONPATH="${PYTHONPATH}:$(pwd)/source"
+        pytest tests/ -v --cov=source --cov-report=xml --tb=short -m "not backend"
+    
+    - name: Run Backend (Bash) tests
+      run: bats tests/test_main.sh -v
+      continue-on-error: true
+    
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        fail_ci_if_error: false
+    
+    - name: Generate test report
+      if: always()
+      run: |
+        export PYTHONPATH="${PYTHONPATH}:$(pwd)/source"
+        pytest tests/ --html=report.html --self-contained-html -m "not backend" || true
+
+  lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install linting tools
+      run: |
+        pip install flake8 pylint
+    
+    - name: Lint Python files
+      run: |
+        flake8 source/ --count --select=E9,F63,F7,F82 --show-source --statistics || true
+        pylint source/ --exit-zero || true
+    
+    - name: ShellCheck
+      run: |
+        sudo apt-get install -y shellcheck
+        shellcheck source/core/*.sh flatpak/*.sh || true
+
+  security:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install security tools
+      run: pip install bandit safety
+    
+    - name: Security check with Bandit
+      run: bandit -r source/ -ll -f json -o bandit-report.json || true
+    
+    - name: Dependency security check
+      run: safety check --json || true
