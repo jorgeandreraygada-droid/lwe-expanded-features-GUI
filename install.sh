@@ -187,6 +187,13 @@ else
     print_info "source/core/main.sh not found (skipping)"
 fi
 
+if [[ -f "source/core/lwe-state-manager.sh" ]]; then
+    run_or_echo "chmod +x source/core/lwe-state-manager.sh"
+    print_success "Set executable bit on source/core/lwe-state-manager.sh"
+else
+    print_info "source/core/lwe-state-manager.sh not found (skipping)"
+fi
+
 if [[ -f "source/run.sh" ]]; then
     run_or_echo "chmod +x source/run.sh"
     print_success "Set executable bit on source/run.sh"
@@ -195,6 +202,45 @@ else
 fi
 
 run_or_echo "chmod +x install.sh || true"
+
+# Install helper scripts to system paths (optional, with sudo if needed)
+print_header "Installing helper scripts (optional)"
+if [[ -f "flatpak/lwe-window-manager.sh" ]]; then
+    INSTALL_DIR="/usr/local/bin"
+    if [[ -w "$INSTALL_DIR" ]]; then
+        # Writable without sudo
+        run_or_echo "cp flatpak/lwe-window-manager.sh $INSTALL_DIR/"
+        run_or_echo "chmod +x $INSTALL_DIR/lwe-window-manager.sh"
+        print_success "Installed lwe-window-manager.sh to $INSTALL_DIR/"
+    else
+        # Need sudo
+        if command -v sudo >/dev/null 2>&1; then
+            if [[ "$NON_INTERACTIVE" == false ]]; then
+                echo ""
+                read -p "lwe-window-manager.sh needs to be installed to $INSTALL_DIR (requires sudo). Continue? [Y/n] " ans_install
+                ans_install=${ans_install:-Y}
+            else
+                ans_install=Y
+            fi
+            if [[ "$ans_install" =~ ^[Yy] ]]; then
+                if [[ "$DRY_RUN" == true ]]; then
+                    echo "[DRY-RUN] sudo cp flatpak/lwe-window-manager.sh $INSTALL_DIR/"
+                    echo "[DRY-RUN] sudo chmod +x $INSTALL_DIR/lwe-window-manager.sh"
+                else
+                    sudo cp flatpak/lwe-window-manager.sh "$INSTALL_DIR/" && \
+                    sudo chmod +x "$INSTALL_DIR/lwe-window-manager.sh" && \
+                    print_success "Installed lwe-window-manager.sh to $INSTALL_DIR/"
+                fi
+            fi
+        else
+            print_info "sudo not found; skipping privileged install. Manual installation:"
+            echo "  sudo cp flatpak/lwe-window-manager.sh /usr/local/bin/"
+            echo "  sudo chmod +x /usr/local/bin/lwe-window-manager.sh"
+        fi
+    fi
+else
+    print_info "flatpak/lwe-window-manager.sh not found (skipping)"
+fi
 
 # Create standard directories
 print_header "Creating application directories"

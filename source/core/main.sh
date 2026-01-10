@@ -20,8 +20,13 @@ if [ -f /.flatpak-info ]; then
     wmctrl() { flatpak-spawn --host wmctrl "$@"; }
     # xdotool executes the host's `xdotool` via `flatpak-spawn --host` with the given arguments.
     xdotool() { flatpak-spawn --host xdotool "$@"; }
+    # Window manager script for robust window operations
+    WINDOW_MANAGER="/app/bin/lwe-window-manager.sh"
+    run_window_manager() { flatpak-spawn --host "$WINDOW_MANAGER" "$@"; }
 else
     IN_FLATPAK=false
+    WINDOW_MANAGER="/usr/local/bin/lwe-window-manager.sh"
+    run_window_manager() { "$WINDOW_MANAGER" "$@"; }
 fi
 
 POOL=()
@@ -120,21 +125,51 @@ kill_previous_engine() {
 cmd_stop() {
     log "Stopping ALL wallpaper engine processes and loops"
 
-    # Mata engine
-    pkill -9 -f linux-wallpaperengine 2>/dev/null || true
+    # First, get windows to close them gracefully
+    local -a engine_windows
+    mapfile -t engine_windows < <(get_engine_windows)
+    
+    # Close windows gracefully first
+    for win in "${engine_windows[@]:-}"; do
+        if [[ -n "$win" ]]; then
+            log "Closing window: $win"
+            if run_window_manager "close-window" "$win" &>/dev/null; then
+                log "Successfully closed window $win"
+            else
+                # Fallback to direct wmctrl
+                wmctrl -i -c "$win" 2>/dev/null || log "Warning: Could not close window $win"
+            fi
+        fi
+    done
+    
+    sleep 1
 
-    # Si existe el archivo de PID del loop, mata ese proceso específico
+    # Kill engine processes (aggressive approach)
+    log "Force killing engine processes"
+    pkill -9 -f linux-wallpaperengine 2>/dev/null || true
+    pkill -9 -f "linux-wallpaperengine" 2>/dev/null || true
+
+    # Kill loop process if exists
     if [[ -f "$PID_FILE" ]]; then
         local loop_pid=$(cat "$PID_FILE" 2>/dev/null || echo "")
-        if [[ -n "$loop_pid" ]] && kill -0 "$loop_pid" 2>/dev/null; then
+        if [[ -n "$loop_pid" ]]; then
             log "Killing loop process with PID: $loop_pid"
             kill -9 "$loop_pid" 2>/dev/null || true
+            sleep 0.5
+            # Verify it's dead
+            if kill -0 "$loop_pid" 2>/dev/null; then
+                log "WARNING: Loop process $loop_pid still alive, trying more aggressive approach"
+                pkill -9 -f "main.sh" 2>/dev/null || true
+            fi
         fi
         rm -f "$PID_FILE"
     fi
     
-    # Mata cualquier otra instancia de bash ejecutando main.sh (como fallback)
+    # Final cleanup: kill any remaining main.sh instances
     pkill -9 -f "bash.*main.sh" 2>/dev/null || true
+    
+    # Clear state files
+    rm -f "$PREV_WINDOWS_FILE" "$ENGINE_STATE_FILE.pid" 2>/dev/null || true
     
     log "Stop command completed"
 }
@@ -215,14 +250,26 @@ apply_window_flags() {
 
     log "Applying window flags to $win_id (Flatpak: $IN_FLATPAK)"
     
-    if wmctrl -i -r "$win_id" -b remove,above 2>/dev/null; then
-        log "Successfully removed 'above' flag"
+    # Use robust window manager script for better reliability
+    if run_window_manager "remove-above" "$win_id" &>/dev/null; then
+        log "Successfully removed 'above' flag via window manager"
     else
-        log "WARNING: Failed to remove 'above' flag"
+        log "WARNING: Window manager failed to remove 'above' flag, trying direct wmctrl"
+        if wmctrl -i -r "$win_id" -b remove,above 2>/dev/null; then
+            log "Successfully removed 'above' flag via wmctrl"
+        else
+            log "CRITICAL: Failed to remove 'above' flag via all methods"
+        fi
     fi
     
-    wmctrl -i -r "$win_id" -b add,skip_pager 2>/dev/null || log "WARNING: Failed to add 'skip_pager'"
-    wmctrl -i -r "$win_id" -b add,below 2>/dev/null || log "WARNING: Failed to add 'below'"
+    # Set below and skip_pager via window manager
+    if run_window_manager "set-below" "$win_id" &>/dev/null; then
+        log "Successfully set window to below state"
+    else
+        log "WARNING: Failed to set below state, trying direct wmctrl"
+        wmctrl -i -r "$win_id" -b add,skip_pager 2>/dev/null || log "WARNING: Failed to add 'skip_pager'"
+        wmctrl -i -r "$win_id" -b add,below 2>/dev/null || log "WARNING: Failed to add 'below'"
+    fi
 
     if [[ -n "$ACTIVE_WIN" ]]; then
         log "Restoring focus to previous window: $ACTIVE_WIN"
