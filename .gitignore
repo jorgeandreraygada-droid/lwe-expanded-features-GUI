@@ -68,4 +68,5 @@ requirements.lock.txt
 INSTALL_NOTES.md
 /config.json
 source/core/config.json
+flatpak/*.tar.bz2
 # End of file
