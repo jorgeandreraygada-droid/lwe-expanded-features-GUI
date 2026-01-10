@@ -14,9 +14,10 @@ mkdir -p "$DATA_DIR" "$CONFIG_DIR"
 # Detectar si estamos en Flatpak
 if [ -f /.flatpak-info ]; then
     IN_FLATPAK=true
-    # Funciones wrapper para ejecutar comandos en el host
+    # wmctrl runs the host's wmctrl command via flatpak-spawn --host when invoked from inside a Flatpak.
     wmctrl() { flatpak-spawn --host wmctrl "$@"; }
-    xdotool() { flatpak-spawn --host xdotool "$@"; }
+    # xdotool executes the host's `xdotool` via `flatpak-spawn --host` with the given arguments.
+xdotool() { flatpak-spawn --host xdotool "$@"; }
 else
     IN_FLATPAK=false
 fi
@@ -30,6 +31,7 @@ COMMAND=""
 DELAY=""
 ACTIVE_WIN=""
 
+# log writes a timestamped message (YYYY-MM-DD HH:MM:SS) composed from its arguments and appends it to the file specified by LOG_FILE.
 log() {
     local msg="[$(date '+%Y-%m-%d %H:%M:%S')] $*"
     echo "$msg" >> "$LOG_FILE"
@@ -76,7 +78,10 @@ cmd_stop() {
 
 ###############################################
 #  Esperar ventana del engine (excluyendo antiguas)
-###############################################
+# wait_for_window waits for a new engine-related window that is not in the provided exclusion list and echoes its window ID.
+# It accepts zero or more window IDs to ignore (exclude_windows). Searches wmctrl for windows matching
+# "linux-wallpaperengine", "wallpaperengine", or "steam_app_431960" and returns the first ID not in the exclusions.
+# If no new window is found within ~10 seconds, logs an error and echoes an empty string.
 wait_for_window() {
     local -a exclude_windows=("$@")
     local win=""
@@ -112,7 +117,7 @@ wait_for_window() {
 
 ###############################################
 #  Aplicar flags de ventana
-###############################################
+# apply_window_flags removes the 'above' flag and adds 'skip_pager' and 'below' to the specified window ID, then restores focus to the previously active window if set.
 apply_window_flags() {
     local win_id="$1"
 
@@ -141,7 +146,7 @@ apply_window_flags() {
 
 ###############################################
 #  Aplicar wallpaper (CON TRANSICIÓN SUAVE)
-###############################################
+# apply_wallpaper launches the wallpaper engine for the given wallpaper path, waits for the newly created window, applies window flags (and optionally restores focus), and closes any previous engine windows while logging progress and errors.
 apply_wallpaper() {
     local path="$1"
 
