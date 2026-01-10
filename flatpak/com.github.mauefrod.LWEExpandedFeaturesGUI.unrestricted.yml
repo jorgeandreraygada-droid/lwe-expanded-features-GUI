@@ -296,6 +296,7 @@ modules:
       - chmod +x /app/share/lwe-gui/source/core/lwe-state-manager.sh || true
       - test -f /app/share/lwe-gui/source/run.sh && chmod +x /app/share/lwe-gui/source/run.sh || true
       - install -Dm755 lwe-gui-wrapper.sh /app/bin/lwe-gui
+      - install -Dm755 lwe-window-manager.sh /app/bin/lwe-window-manager.sh
       - install -Dm644 com.github.mauefrod.LWEExpandedFeaturesGUI.desktop /app/share/applications/com.github.mauefrod.LWEExpandedFeaturesGUI.desktop
       - install -Dm644 com.github.mauefrod.LWEExpandedFeaturesGUI.appdata.xml /app/share/metainfo/com.github.mauefrod.LWEExpandedFeaturesGUI.appdata.xml
       - test -f com.github.mauefrod.LWEExpandedFeaturesGUI.png && install -Dm644 com.github.mauefrod.LWEExpandedFeaturesGUI.png /app/share/icons/hicolor/256x256/apps/com.github.mauefrod.LWEExpandedFeaturesGUI.png || echo "No icon found, will use placeholder"
@@ -305,6 +306,8 @@ modules:
         branch: main
       - type: file
         path: lwe-gui-wrapper.sh
+      - type: file
+        path: lwe-window-manager.sh
       - type: file
         path: com.github.mauefrod.LWEExpandedFeaturesGUI.desktop
       - type: file
