@@ -55,7 +55,7 @@ while [[ $attempt -lt $max_attempts ]]; do
         } &
         
         # Don't wait for the background job - let it run in parallel
-        local async_pid=$!
+        async_pid=$!
         if [[ $((attempt % 60)) -eq 0 ]]; then
             log_monitor "Launched async window fix attempt (bg PID: $async_pid, attempt $attempt)"
         fi
