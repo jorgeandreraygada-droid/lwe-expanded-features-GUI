@@ -56,6 +56,8 @@ finish-args:
   - --env=XAUTHORITY=$HOME/.Xauthority
   - --socket=session-bus
   - --socket=system-bus
+  # Expose PIDs from parent sandbox to allow flatpak-enter from host
+  - --share=pid
 
 modules:
   # [Same as standard manifest - see com.github.mauefrod.LWEExpandedFeaturesGUI.yml]

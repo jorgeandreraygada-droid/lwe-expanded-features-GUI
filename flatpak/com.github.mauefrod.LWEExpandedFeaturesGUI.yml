@@ -43,6 +43,9 @@ finish-args:
   # Allow spawning host commands (wmctrl, xdotool)
   # This is necessary for the flags --delay, --random, --above to work properly
   - --allow=devel
+  # Expose PIDs from parent sandbox to allow flatpak-enter from host
+  # This allows external tools to access the sandbox namespace for window manipulation
+  - --share=pid
 
 modules:
   - name: glu

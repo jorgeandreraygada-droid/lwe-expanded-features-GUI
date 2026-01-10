@@ -16,6 +16,8 @@ mkdir -p "$DATA_DIR" "$CONFIG_DIR"
 # Detectar si estamos en Flatpak
 if [ -f /.flatpak-info ]; then
     IN_FLATPAK=true
+    # Get Flatpak app ID from environment or metadata
+    FLATPAK_APP_ID="${FLATPAK_ID:-com.github.mauefrod.LWEExpandedFeaturesGUI}"
     # Inside Flatpak, wmctrl and xdotool are available locally (bundled in the Flatpak)
     # They can access the host's X11 through the X11 socket forwarding
     # NO need for flatpak-spawn --host; use local tools instead
@@ -26,6 +28,7 @@ if [ -f /.flatpak-info ]; then
     run_window_manager() { "$WINDOW_MANAGER" "$@"; }
 else
     IN_FLATPAK=false
+    FLATPAK_APP_ID=""
     WINDOW_MANAGER="/usr/local/bin/lwe-window-manager.sh"
     run_window_manager() { "$WINDOW_MANAGER" "$@"; }
 fi
@@ -366,12 +369,18 @@ apply_wallpaper() {
     
     # Start background monitor to continuously try to apply window flags
     # This is a workaround for Flatpak restrictions on wmctrl
+    # Uses flatpak-enter if available to access sandbox namespace
     if [[ "$REMOVE_ABOVE" == "true" ]]; then
         local monitor_script
         monitor_script="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/window-monitor.sh"
         if [[ -f "$monitor_script" ]]; then
-            log "Starting background window monitor (REMOVE_ABOVE=true)"
-            bash "$monitor_script" "$new_pid" "$REMOVE_ABOVE" "$LOG_FILE" &
+            log "Starting background window monitor (REMOVE_ABOVE=true, Flatpak=$IN_FLATPAK)"
+            if [[ "$IN_FLATPAK" == "true" ]]; then
+                # Pass Flatpak app ID so monitor can use flatpak-enter
+                bash "$monitor_script" "$new_pid" "$REMOVE_ABOVE" "$LOG_FILE" "$FLATPAK_APP_ID" &
+            else
+                bash "$monitor_script" "$new_pid" "$REMOVE_ABOVE" "$LOG_FILE" &
+            fi
             local monitor_pid=$!
             log "Window monitor started with PID $monitor_pid"
         else
