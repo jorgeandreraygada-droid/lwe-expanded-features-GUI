@@ -31,8 +31,10 @@ def get_script_path(script_name):
             return script_path
     
     # Try relative to this module (native installation)
+    # Path structure: /source/gui/path_utils.py
+    # We need to go UP one level to /source, then access core/main.sh
     module_dir = os.path.dirname(os.path.abspath(__file__))
-    script_path = os.path.join(module_dir, "..", "..", "core", script_name)
+    script_path = os.path.join(module_dir, "..", "core", script_name)
     script_path = os.path.abspath(script_path)
     
     if os.path.exists(script_path):

@@ -12,14 +12,23 @@ class EngineController:
     def __init__(self, config, log_callback=None):
         self.config = config
         self.log_callback = log_callback
+        self.script_path = None
         
         # Obtener ruta del script main.sh (Flatpak-aware)
         try:
             self.script_path = get_script_path("main.sh")
-            self.log(f"[DEBUG] Script path resolved to: {self.script_path}")
+            # Log only if callback is available
+            if self.log_callback:
+                self.log(f"[DEBUG] Script path resolved to: {self.script_path}")
         except FileNotFoundError as e:
-            self.log(f"[ERROR] {str(e)}")
-            self.script_path = None
+            # Store error but don't crash during init
+            # Will be caught later when trying to run engine
+            error_msg = f"[ERROR] {str(e)}"
+            # Log only if callback is available
+            if self.log_callback:
+                self.log(error_msg)
+            else:
+                print(error_msg)  # Print to console as fallback
     
     def log(self, message):
         """Envía un mensaje al callback de log si existe"""
