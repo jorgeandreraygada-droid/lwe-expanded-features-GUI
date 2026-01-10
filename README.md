@@ -19,13 +19,19 @@
 
 ---
 
-## 📖 About
+<details>
+<summary>📖 About</summary>
 
 **Linux Wallpaper Engine GUI** is a desktop application that provides an intuitive and feature-rich interface for managing and applying dynamic wallpapers on Linux systems. It leverages the power of [linux-wallpaperengine](https://github.com/Acters/linux-wallpaperengine) to bring the Wallpaper Engine experience to Linux users with additional GUI enhancements, organization tools, and automation features.
 
 ---
 
+</details>
+
 ## ✨ Features
+
+<details>
+<summary>✨ Features</summary>
 
 - 🖼️ **Visual Gallery** - Browse wallpapers with thumbnail previews
 - 📁 **Group Organization** - Create and manage wallpaper groups/collections
@@ -37,10 +43,15 @@
 - � **Advanced Sound Control** - Manage audio playback with multiple sound options
 - �📊 **Real-time Logging** - Monitor application and engine activity
 - 💾 **Persistent Configuration** - Remember your preferences across sessions
+ - 🔁 **Toggleable Sections** - Most UI panels and sections can be shown or hidden to simplify the interface and improve readability
+
+</details>
 
 ---
 
 ## 📋 Requirements
+
+<details>
 
 ### System Requirements
 - **Operating System**: Linux (Ubuntu, Arch, Fedora, Debian, etc.)
@@ -60,7 +71,13 @@
 
 ---
 
+</details>
+
+---
+
 ## 🚀 Installation
+
+<details>
 
 ### Automated Installation (Recommended)
 
@@ -155,7 +172,47 @@ Ensure `linux-wallpaperengine` is installed and in your PATH.
 
 ---
 
+</details>
+
+---
+
+## 🧪 Flatpak Integration (experimental)
+
+<details>
+
+This repository includes a Flatpak build description under the `flatpak/` directory to produce a sandboxed application bundle. The Flatpak build can be useful for testing or distributing a packaged desktop app, but it has important limitations (see notes below).
+
+### Build & Install (example)
+
+Build and install locally with `flatpak-builder` (developer machine):
+
+```bash
+# build and install for the current user
+flatpak-builder --user --install --force-clean build-dir flatpak/x86_64-com.github.mauefrod.LWEExpandedFeaturesGUI.yml
+
+# run the installed Flatpak
+flatpak run com.github.mauefrod.LWEExpandedFeaturesGUI
+```
+
+Notes:
+- The exact manifest path may vary; adjust the `.yml` filename for your architecture or manifest location in `flatpak/`.
+- Flatpak builds are sandboxed and therefore may require extra permissions if you need filesystem or DBus access outside the sandbox.
+
+### Important limitations — Flatpak is NOT RECOMMENDED for full functionality
+
+Because Flatpak runs the application inside a sandbox, it severely limits the application's ability to detect existing windows and interact with external processes. As a result, features that depend on observing or controlling the external `linux-wallpaperengine` process (for example, the `--delay`, `--random`, `--above` flags, and reliable window detection/management) will not work correctly or reliably in the Flatpak build.
+
+Therefore, using the Flatpak build is considered experimental. For reliable behavior and full feature support (especially automatic/random/delay modes and always-on-top/window-management flags), we strongly recommend installing and running the native build using the provided `install.sh` installer (see Installation above).
+
+If you still wish to try the Flatpak build, treat it as best-effort and test carefully for your desktop environment and display server.
+
+</details>
+
+---
+
 ## 📖 Usage
+
+<details>
 
 ### Running the Application
 
@@ -201,70 +258,11 @@ python3 GUI.py
    - **Sound Control**: Configure audio playback behavior for wallpapers
    - **Json Config**: The provided config.json in [source/core/config_example.json] is merely an example. The real
    config.json is stored at [~/.config/linux-wallpaper-engine-features/]
-
-### Sound Control (--sound)
-
-The Sound Control panel allows you to manage audio playback from wallpapers with several options:
-
-#### Available Sound Options
-
-1. **Silent Mode** (`--silent`)
-   - Completely mutes all audio output from the wallpaper
-   - Useful when you want visual wallpapers without sound
-   - Affects only the wallpaper engine, not your system audio
-
-2. **No Auto Mute** (`--noautomute`)
-   - Prevents the wallpaper from automatically muting its audio when other applications play sound
-   - By default, wallpapers mute themselves when you play music, watch videos, etc.
-   - Enable this to keep wallpaper audio active even when other apps are playing audio
-
-3. **No Audio Processing** (`--no-audio-processing`)
-   - Disables audio-reactive features in wallpapers
-   - Some wallpapers respond to audio input (visualization, color changes, animations based on sound)
-   - Use this option to disable those features and improve performance
-
-#### How Sound Control Works in the GUI
-
-**Panel Behavior**:
-- The Sound Control panel is located in the right sidebar below the Flags panel
-- Each option is presented as an independent checkbox
-- All checkboxes can be used together or independently
-- Settings are automatically saved to `~/.config/linux-wallpaper-engine-features/config.json`
-
-**Event Handling**:
-- When you toggle any sound checkbox, an event handler is triggered
-- The handler updates the configuration file with the new sound settings
-- If a wallpaper is currently active, it is automatically re-applied with the updated audio configuration
-- This ensures sound changes take effect immediately without requiring manual wallpaper reapplication
-
-**Backend Integration**:
-- The [source/gui/event_handler/event_handler.py](source/gui/event_handler/event_handler.py) handles all sound checkbox changes
-- Sound flags are collected and passed to the backend shell script [source/core/main.sh](source/core/main.sh)
-- The `--sound` flag groups all audio-related options and passes them directly to the `linux-wallpaperengine` backend
-- The backend engine interprets and applies these sound parameters to the wallpaper process
-
-**Configuration Storage**:
-Sound settings are stored in your config file under the `--sound` object:
-```json
-"--sound": {
-  "silent": false,
-  "volume": null,
-  "noautomute": false,
-  "no_audio_processing": false
-}
-```
-
-#### Example Usage Scenarios
-
-- **Quiet Desktop**: Enable `Silent` to mute all wallpaper audio while maintaining visual quality
-- **Ambient Audio**: Leave `No Auto Mute` unchecked (default) to let wallpapers auto-mute when you're playing music
-- **Always-On Audio**: Enable `No Auto Mute` if you want wallpaper audio to continue playing in the background regardless of other apps
-- **Performance**: Enable `No Audio Processing` if your CPU usage is high from audio-reactive animations
-- **Custom Combinations**: Mix and match options to suit your preference (e.g., silent + no audio processing for minimal overhead)
-
 ---
 
 ## 🏗️ Architecture
+
+<details>
 
 ### Project Structure
 
@@ -272,33 +270,54 @@ Sound settings are stored in your config file under the `--sound` object:
 linux-wallpaper-engine-features/
 ├── source/
 │   ├── GUI.py                 # Main application entry point
-│   ├── gui/
-│   │   ├── gui_engine.py      # GUI controller
-│   │   ├── config.py          # Configuration management
-│   │   ├── wallpaper_loader.py# Image loading and caching
-│   │   ├── engine_controller.py# Backend process management
-│   │   ├── event_handler/     # Event handling system
-│   │   ├── ui_components/     # UI components (buttons, panels)
-│   │   ├── gallery_view/      # Gallery management and rendering
-│   │   └── groups.py          # Group management
+│   ├── gui/                   # All GUI logic and controllers
+│   │   ├── gui_engine.py      # High-level GUI controller
+│   │   ├── config.py          # Configuration management and persistence
+│   │   ├── wallpaper_loader.py# Thumbnail & preview loading + caching
+│   │   ├── engine_controller.py# Starts/stops backend engine and manages flags
+│   │   ├── event_handler/     # User event processing
+   │   ├── gallery_view/      # Gallery management and rendering
+│   │   └── ui_components/     # Reusable UI widgets (buttons, panels)
 │   └── core/
-│       └── main.sh            # Backend shell script
-├── install.sh                  # Installation script
+│       └── main.sh            # Helper shell scripts used by the backend
+├── install.sh                  # Native installer (recommended)
+├── flatpak/                    # Flatpak manifests and build-dir (packaging)
 ├── requirements.txt            # Python dependencies
 └── README.md                   # This file
 ```
 
-### Key Components
+### Runtime overview
 
-- **GUI Engine** - Main controller coordinating all UI components
-- **Gallery Manager** - Handles thumbnail rendering and layout
-- **Engine Controller** - Manages backend process execution
-- **Event Handler** - Processes user interactions
-- **Config Manager** - Saves/loads user preferences
+- **Process flow**: The user interacts with the UI (`GUI.py` → `gui/`), which delegates wallpaper application tasks to the `Engine Controller` (`engine_controller.py`). The controller launches and communicates with the `linux-wallpaperengine` backend (a CLI/binary) using command-line flags and by monitoring its process and logs.
+- **Thumbnail & gallery**: `wallpaper_loader.py` loads `preview.jpg`/`preview.png` assets and caches thumbnails used by the `gallery_view` and `gallery_manager` to render the visual library.
+- **Configuration**: `config.py` persists settings to `~/.config/linux-wallpaper-engine-features/config.json`. Installer-created data and logs are stored under `~/.local/share/linux-wallpaper-engine-features/`.
+- **Window & process management**: The app uses system tools (`wmctrl`, `xdotool`) to detect and manipulate wallpaper windows when running in Window Mode or when applying `--above`/priority flags.
+- **Packaging**: The `flatpak/` directory contains build manifests and an exported `build-dir` for Flatpak packaging. Flatpak builds package a runtime and sandbox the app, changing how the Engine Controller finds and interacts with external processes.
+
+### Key components (details)
+
+- **GUI Engine (`gui_engine.py`)**: Coordinates UI state, user actions, and high-level workflows (apply, stop, random/delay modes).
+- **Engine Controller (`engine_controller.py`)**: Responsible for assembling engine command lines (`--dir`, `--window`, `--above`, `--random`, `--delay`), spawning the backend process, watching stdout/stderr for status, and terminating/cleaning up processes.
+- **Wallpaper Loader (`wallpaper_loader.py`)**: Handles scanning wallpaper directories, reading preview images, generating thumbnails, and caching for responsive UI.
+- **Gallery Manager / View (`gallery_view/`)**: Manages layout, selection, context menus, and commands to apply wallpapers.
+- **Event Handler (`event_handler/`)**: Central event dispatcher for UI interactions and background tasks.
+- **Config Manager (`config.py`)**: Loads/saves user preferences and exposes a programmatic API for settings.
+- **Core scripts (`source/core/main.sh`) & `install.sh`**: Shell helpers used by the backend and the native installer; `install.sh` is the recommended way to install required system dependencies, create a virtualenv, and prepare the native environment.
+
+### Packaging notes
+
+- **Native build (recommended)**: `install.sh` sets up a native environment where the application has full access to system tools and processes. This results in reliable detection of existing wallpaper windows and correct behavior for `--delay`, `--random`, `--above`, and other window-management features.
+- **Flatpak (experimental)**: The Flatpak build is provided for convenience/packaging in `flatpak/` but is sandboxed; sandboxing restricts filesystem, process, and window visibility which breaks or limits features that rely on interacting with external processes or the X11 window stack. For full functionality, prefer the native install.
+
+---
+
+</details>
 
 ---
 
 ## 🛠️ Development
+
+<details>
 
 ### Setting Up Development Environment
 
@@ -327,7 +346,13 @@ The application follows an MVC-like pattern:
 
 ---
 
+</details>
+
+---
+
 ## 🐛 Troubleshooting
+
+<details>
 
 ### Application won't start
 - Ensure all system dependencies are installed
@@ -348,9 +373,13 @@ The application follows an MVC-like pattern:
 - The process should stop automatically; check the logs
 - If stuck, kill manually: `pkill -f linux-wallpaperengine`
 
+</details>
+
 ---
 
 ## 📝 Configuration
+
+<details>
 
 Configuration is stored in `~/.config/linux-wallpaper-engine-features/config.json`. You can manually edit this file to adjust settings:
 
@@ -362,28 +391,17 @@ Configuration is stored in `~/.config/linux-wallpaper-engine-features/config.jso
 - `--sound` - Audio control settings with options for silent, volume, noautomute, and no_audio_processing
 - `--show-logs` - Log visibility
 
-#### Sound Configuration Options
-
-The `--sound` configuration object contains:
-
-```json
-"--sound": {
-  "silent": false,              // Mute all wallpaper audio
-  "volume": null,               // Volume level (0-100, null means use default) *Currently not supported. Ignore in config file.
-  "noautomute": false,          // Don't auto-mute when other apps play audio
-  "no_audio_processing": false  // Disable audio-reactive features
-}
-```
-
 ---
 
 ## 🙏 Credits & Attribution
 
+<details>
+
 ### Original Project
 This project builds upon and extends:
 - **[linux-wallpaperengine](https://github.com/Acters/linux-wallpaperengine)** - A CLI tool to apply Wallpaper Engine projects on Linux
-  - Created by [Acters](https://github.com/Acters)
-  - A fantastic port of the Wallpaper Engine experience to Linux
+   - Created by [Acters](https://github.com/Acters)
+   - A fantastic port of the Wallpaper Engine experience to Linux
 
 ### Key Technologies
 - **Python 3** - Programming language
@@ -395,16 +413,22 @@ This project builds upon and extends:
 - The Wallpaper Engine community for creating amazing wallpapers
 - The linux-wallpaperengine project for making this possible on Linux
 - All contributors and users providing feedback and improvements
-- APP icon used under license. Atributed to: <a href="https://www.flaticon.es/iconos-gratis/marcador-de-posicion-de-imagen" title="marcador de posición de imagen iconos">Marcador de posición de imagen iconos creados por Anggara - Flaticon</a>
+
 ---
 
 ## 📄 License
 
+<details>
+
 This project is released under the **MIT License** - see [LICENSE](LICENSE) file for details.
+
+</details>
 
 ---
 
 ## 🤝 Contributing
+
+<details>
 
 Contributions are welcome! Here's how you can help:
 
@@ -419,22 +443,32 @@ Contributions are welcome! Here's how you can help:
 - Provide clear commit messages
 - Document any new features
 
+</details>
+
 ---
 
 ## 📞 Support
+
+<details>
 
 For issues, questions, or suggestions:
 1. Check the [Troubleshooting](#-troubleshooting) section
 2. Review the logs at `~/.local/share/linux-wallpaper-engine-features/logs.txt`
 3. Open an issue on the repository
 
+</details>
+
 ---
 
 ## 🔗 Resources
 
+<details>
+
 - [Wallpaper Engine](https://store.steampowered.com/app/431960/Wallpaper_Engine/) - Steam Workshop
 - [linux-wallpaperengine](https://github.com/Acters/linux-wallpaperengine) - Backend project
 - [Python Tkinter Docs](https://docs.python.org/3/library/tkinter.html) - GUI framework documentation
+
+</details>
 
 ---
 
