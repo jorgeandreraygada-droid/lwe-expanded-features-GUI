@@ -2,6 +2,7 @@ from subprocess import Popen, PIPE
 from threading import Thread
 from os import path
 from gui.config import save_config, build_args
+from gui.path_utils import get_script_path
 import os
 
 
@@ -12,9 +13,13 @@ class EngineController:
         self.config = config
         self.log_callback = log_callback
         
-        # Obtener ruta del script main.sh
-        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        self.script_path = os.path.join(project_root, "core", "main.sh")
+        # Obtener ruta del script main.sh (Flatpak-aware)
+        try:
+            self.script_path = get_script_path("main.sh")
+            self.log(f"[DEBUG] Script path resolved to: {self.script_path}")
+        except FileNotFoundError as e:
+            self.log(f"[ERROR] {str(e)}")
+            self.script_path = None
     
     def log(self, message):
         """Envía un mensaje al callback de log si existe"""
@@ -24,14 +29,30 @@ class EngineController:
     def stop_engine(self):
         """Detiene el engine actual"""
         self.log("[GUI] Stopping previous engine...")
-        stop_proc = Popen(
-            [self.script_path, "--stop"],
-            stdout=PIPE,
-            stderr=PIPE,
-            text=True
-        )
-        stop_proc.wait()
-        self.log("[GUI] Previous engine stopped")
+        
+        if not self.script_path:
+            self.log("[ERROR] Script path not available, cannot stop engine")
+            return
+        
+        try:
+            if not os.path.exists(self.script_path):
+                self.log(f"[ERROR] Script not found at: {self.script_path}")
+                return
+            
+            stop_proc = Popen(
+                [self.script_path, "--stop"],
+                stdout=PIPE,
+                stderr=PIPE,
+                text=True
+            )
+            stdout, stderr = stop_proc.communicate()
+            
+            if stop_proc.returncode != 0 and stderr:
+                self.log(f"[ERROR] Stop engine error: {stderr}")
+            else:
+                self.log("[GUI] Previous engine stopped")
+        except Exception as e:
+            self.log(f"[ERROR] Failed to stop engine: {str(e)}")
     
     def update_pool(self, item_list, current_view):
         """Actualiza el pool de wallpapers"""
@@ -54,6 +75,10 @@ class EngineController:
             current_view: Vista actual de la galería
             show_gui_warning: Si True, muestra advertencias GUI sobre directorio inválido
         """
+        if not self.script_path:
+            self.log("[ERROR] Cannot run engine: Script path not available")
+            return
+        
         save_config(self.config)
         
         # Configurar el wallpaper específico si es necesario
@@ -84,8 +109,18 @@ class EngineController:
         args = [self.script_path] + args
         self.log(f"[GUI] Executing: {' '.join(args)}")
         
+        # Verificar que el script existe
+        if not os.path.exists(self.script_path):
+            self.log(f"[ERROR] Script not found at: {self.script_path}")
+            return
+        
         # Ejecutar el script
-        proc = Popen(args, stdout=PIPE, stderr=PIPE, text=True)
+        try:
+            proc = Popen(args, stdout=PIPE, stderr=PIPE, text=True)
+        except Exception as e:
+            self.log(f"[ERROR] Failed to start engine: {str(e)}")
+            return
+
         
         def read_backend_output():
             for line in proc.stdout:

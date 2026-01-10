@@ -1,6 +1,7 @@
 from tkinter import filedialog, messagebox, Toplevel, Label, Frame, Button, ttk
 from subprocess import Popen
 from os import path
+import os
 from gui.config import update_set_flag, save_config
 
 
@@ -28,13 +29,45 @@ class EventHandlers:
     def on_explore_directory(self):
         """Abre el directorio en el explorador de archivos"""
         try:
-            self.log(f"[HANDLER] Opening directory explorer for: {self.config['--dir']}")
-            Popen(["xdg-open", self.config["--dir"]])
-        except (TypeError, KeyError):
-            self.log("[HANDLER] No directory selected, cannot open explorer")
-            messagebox.showwarning(
-                title="No path selected",
-                message="Please, select the Wallpaper Engine Steam Workshop directory before proceeding."
+            dir_path = self.config.get('--dir')
+            if not dir_path:
+                self.log("[HANDLER] No directory selected")
+                messagebox.showwarning(
+                    title="No path selected",
+                    message="Please, select the Wallpaper Engine Steam Workshop directory before proceeding."
+                )
+                return
+            
+            if not os.path.exists(dir_path):
+                self.log(f"[HANDLER] Directory does not exist: {dir_path}")
+                messagebox.showerror(
+                    title="Directory not found",
+                    message=f"The selected directory does not exist:\n{dir_path}"
+                )
+                return
+            
+            self.log(f"[HANDLER] Opening directory explorer for: {dir_path}")
+            try:
+                Popen(["xdg-open", dir_path])
+            except FileNotFoundError:
+                self.log("[WARNING] xdg-open not found, trying alternatives")
+                # Fallback for environments where xdg-open doesn't exist
+                try:
+                    Popen(["thunar", dir_path])
+                except:
+                    try:
+                        Popen(["nautilus", dir_path])
+                    except:
+                        self.log("[ERROR] Could not open file manager")
+                        messagebox.showerror(
+                            title="File manager not found",
+                            message="Could not open file manager. Please open manually:\n" + dir_path
+                        )
+        except Exception as e:
+            self.log(f"[ERROR] Error opening directory: {str(e)}")
+            messagebox.showerror(
+                title="Error",
+                message=f"Error opening directory: {str(e)}"
             )
     
     # ========== Flags ==========
@@ -236,11 +269,33 @@ class EventHandlers:
     def on_stop(self):
         """Detiene el engine"""
         self.log("[GUI] Stopping engine and loops")
-        script_path = path.join(path.dirname(__file__), "..", "..", "core", "main.sh")
-        proc = Popen([script_path, "--stop"])
-        # Use a thread to wait and log completion without blocking GUI
-        import threading
-        def wait_and_log():
-            proc.wait()
-            self.log("[GUI] Engine stop command completed")
-        threading.Thread(target=wait_and_log, daemon=True).start()
+        
+        # Import path_utils for Flatpak-aware path resolution
+        from gui.path_utils import get_script_path
+        
+        try:
+            script_path = get_script_path("main.sh")
+        except FileNotFoundError as e:
+            self.log(f"[ERROR] {str(e)}")
+            messagebox.showerror("Error", "Could not find main.sh script")
+            return
+        
+        try:
+            if not os.path.exists(script_path):
+                self.log(f"[ERROR] Script not found at: {script_path}")
+                messagebox.showerror("Error", f"Script not found at: {script_path}")
+                return
+            
+            proc = Popen([script_path, "--stop"], stdout=os.DEVNULL, stderr=os.DEVNULL)
+            # Use a thread to wait and log completion without blocking GUI
+            import threading
+            def wait_and_log():
+                returncode = proc.wait()
+                if returncode == 0:
+                    self.log("[GUI] Engine stop command completed")
+                else:
+                    self.log(f"[WARNING] Engine stop returned code {returncode}")
+            threading.Thread(target=wait_and_log, daemon=True).start()
+        except Exception as e:
+            self.log(f"[ERROR] Failed to stop engine: {str(e)}")
+            messagebox.showerror("Error", f"Failed to stop engine: {str(e)}")
