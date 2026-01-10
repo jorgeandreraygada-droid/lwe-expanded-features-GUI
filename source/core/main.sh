@@ -29,6 +29,21 @@ else
     run_window_manager() { "$WINDOW_MANAGER" "$@"; }
 fi
 
+# Diagnostic function to test if wmctrl works
+test_wmctrl() {
+    if wmctrl -lx &>/dev/null; then
+        return 0
+    else
+        # More detailed diagnostics
+        local wmctrl_test
+        wmctrl_test=$(wmctrl -lx 2>&1 || true)
+        if [[ -n "$wmctrl_test" ]]; then
+            log "DEBUG: wmctrl output: $wmctrl_test"
+        fi
+        return 1
+    fi
+}
+
 POOL=()
 ENGINE=linux-wallpaperengine
 ENGINE_ARGS=()
@@ -190,9 +205,12 @@ wait_for_window() {
     local wmctrl_works=true
     
     # Quick test: does wmctrl work?
-    if ! wmctrl -lx &>/dev/null; then
+    if ! test_wmctrl; then
         log "WARNING: wmctrl not working (possible Flatpak sandbox restriction)"
+        log "DEBUG: Flatpak mode: $IN_FLATPAK | flatpak-spawn available: $(command -v flatpak-spawn >/dev/null 2>&1 && echo yes || echo no)"
         wmctrl_works=false
+    else
+        log "DEBUG: wmctrl is working correctly"
     fi
     
     for i in {1..200}; do
@@ -204,7 +222,7 @@ wait_for_window() {
             # Fallback: if wmctrl doesn't work, just wait a bit and assume window is ready
             # This is a workaround for strict Flatpak sandboxes
             if [[ $i -ge 20 ]]; then
-                log "FLATPAK FALLBACK: Assuming window created after delay (wmctrl unavailable)"
+                log "FLATPAK FALLBACK: Assuming window created after delay (wmctrl unavailable after $((i*50))ms)"
                 echo ""
                 return
             fi

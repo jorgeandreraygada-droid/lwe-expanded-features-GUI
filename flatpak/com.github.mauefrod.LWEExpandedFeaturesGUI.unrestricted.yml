@@ -48,10 +48,14 @@ finish-args:
   - --talk-name=org.freedesktop.ScreenSaver
   - --talk-name=org.freedesktop.Notifications
   - --talk-name=org.freedesktop.PowerManagement
+  - --talk-name=org.freedesktop.Flatpak
+  # Required for flatpak-spawn --host to work
+  - --system-talk-name=org.freedesktop.DBus
   # Environment
   - --env=DBUS_FATAL_WARNINGS=0
   - --env=XAUTHORITY=$HOME/.Xauthority
   - --socket=session-bus
+  - --socket=system-bus
 
 modules:
   # [Same as standard manifest - see com.github.mauefrod.LWEExpandedFeaturesGUI.yml]
