@@ -248,12 +248,68 @@ run_or_echo "mkdir -p ~/.local/share/linux-wallpaper-engine-features/"
 run_or_echo "mkdir -p ~/.config/linux-wallpaper-engine-features/"
 print_success "Application directories ensured"
 
-# Check for linux-wallpaperengine backend
+# Check for linux-wallpaperengine backend (IMPROVED DETECTION)
 print_header "Checking linux-wallpaperengine backend"
-if command -v linux-wallpaperengine >/dev/null 2>&1; then
-    print_success "linux-wallpaperengine found: $(linux-wallpaperengine --version 2>/dev/null || echo 'version unknown')"
-else
-    print_error "linux-wallpaperengine not found in PATH"
+
+BACKEND_FOUND=false
+BACKEND_PATH=""
+
+# Method 1: Check common binary names in PATH
+for binary_name in linux-wallpaperengine wallpaperengine; do
+    if command -v "$binary_name" >/dev/null 2>&1; then
+        BACKEND_PATH=$(command -v "$binary_name")
+        print_success "$binary_name found in PATH: $BACKEND_PATH"
+        
+        # Try to get version info
+        VERSION_INFO=$("$binary_name" --version 2>/dev/null || echo "version unknown")
+        print_info "Version: $VERSION_INFO"
+        
+        BACKEND_FOUND=true
+        break
+    fi
+done
+
+# Method 2: Check common installation locations
+if [[ "$BACKEND_FOUND" == false ]]; then
+    print_info "Not found in PATH, checking common installation locations..."
+    
+    for location in \
+        "$HOME/.local/bin/linux-wallpaperengine" \
+        "/usr/local/bin/linux-wallpaperengine" \
+        "/usr/bin/linux-wallpaperengine" \
+        "./linux-wallpaperengine/build/linux-wallpaperengine" \
+        "./linux-wallpaperengine/linux-wallpaperengine"; do
+        
+        if [[ -x "$location" ]]; then
+            BACKEND_PATH="$location"
+            print_success "Backend found at: $BACKEND_PATH"
+            
+            # Check if it's in PATH
+            if [[ "$location" == "./"* ]]; then
+                print_info "NOTE: Backend is in local directory. Consider adding $(dirname "$(readlink -f "$location")") to your PATH"
+            elif [[ "$location" == "$HOME/.local/bin/"* ]]; then
+                print_info "NOTE: Ensure $HOME/.local/bin is in your PATH"
+            fi
+            
+            BACKEND_FOUND=true
+            break
+        fi
+    done
+fi
+
+# If still not found, provide detailed diagnostics
+if [[ "$BACKEND_FOUND" == false ]]; then
+    print_error "linux-wallpaperengine backend not found"
+    echo ""
+    print_info "Checked the following locations:"
+    echo "  - System PATH (as 'linux-wallpaperengine' or 'wallpaperengine')"
+    echo "  - $HOME/.local/bin/linux-wallpaperengine"
+    echo "  - /usr/local/bin/linux-wallpaperengine"
+    echo "  - /usr/bin/linux-wallpaperengine"
+    echo "  - ./linux-wallpaperengine/build/linux-wallpaperengine"
+    echo ""
+    
+    # Offer to install backend
     if [[ "$INSTALL_BACKEND" == true ]]; then
         if [[ "$DRY_RUN" == true ]]; then
             echo "[DRY-RUN] git clone https://github.com/Acters/linux-wallpaperengine.git"
@@ -262,13 +318,47 @@ else
                 print_error "git is required to clone the backend. Install git and retry."
             else
                 print_info "Cloning linux-wallpaperengine to ./linux-wallpaperengine"
-                git clone https://github.com/Acters/linux-wallpaperengine.git || print_error "Failed to clone backend"
-                print_info "Please follow backend README for installation steps"
+                if git clone https://github.com/Acters/linux-wallpaperengine.git; then
+                    print_success "Backend repository cloned successfully"
+                    echo ""
+                    print_info "To build and install the backend:"
+                    echo "  cd linux-wallpaperengine"
+                    echo "  mkdir build && cd build"
+                    echo "  cmake .."
+                    echo "  make"
+                    echo "  sudo make install  # or copy the binary to ~/.local/bin/"
+                    echo ""
+                    print_info "Then re-run this installer to verify the installation"
+                else
+                    print_error "Failed to clone backend repository"
+                fi
             fi
         fi
     else
-        print_info "To install backend automatically, re-run with --install-backend"
+        print_info "Installation options:"
+        echo ""
+        echo "  Option 1: Re-run with --install-backend to clone the repository"
+        echo "    ./install.sh --install-backend"
+        echo ""
+        echo "  Option 2: Manual installation from source"
+        echo "    git clone https://github.com/Acters/linux-wallpaperengine.git"
+        echo "    cd linux-wallpaperengine"
+        echo "    mkdir build && cd build"
+        echo "    cmake .."
+        echo "    make"
+        echo "    sudo make install"
+        echo ""
+        echo "  Option 3: Check if your distribution has a package"
+        echo "    Arch (AUR): yay -S linux-wallpaperengine-git"
+        echo ""
     fi
+    
+    # Diagnostic commands
+    print_info "To diagnose backend installation issues, run:"
+    echo "  which linux-wallpaperengine"
+    echo "  echo \$PATH"
+    echo "  ls -la ~/.local/bin/linux-wallpaperengine 2>/dev/null"
+    echo "  ls -la /usr/local/bin/linux-wallpaperengine 2>/dev/null"
 fi
 
 # Optional: create desktop entry
@@ -306,10 +396,22 @@ print_header "Installation complete"
 print_success "Installer finished"
 
 echo ""
-print_info "Next steps (if needed):"
-echo "  - Ensure 'linux-wallpaperengine' backend is installed and available in PATH."
-echo "  - Launch the app: $PWD/source/run.sh (or from the desktop menu if created)."
-echo "  - To run inside the virtualenv: source $VENV_PATH/bin/activate && python3 source/GUI.py"
+if [[ "$BACKEND_FOUND" == true ]]; then
+    print_success "Backend detected at: $BACKEND_PATH"
+else
+    print_error "Backend NOT detected - you must install linux-wallpaperengine before using this GUI"
+fi
+
+echo ""
+print_info "Next steps:"
+if [[ "$BACKEND_FOUND" == false ]]; then
+    echo "  1. Install linux-wallpaperengine backend (see instructions above)"
+    echo "  2. Re-run this installer to verify: ./install.sh"
+    echo "  3. Launch the app: $PWD/source/run.sh"
+else
+    echo "  - Launch the app: $PWD/source/run.sh (or from the desktop menu if created)"
+    echo "  - To run inside the virtualenv: source $VENV_PATH/bin/activate && python3 source/GUI.py"
+fi
 
 echo ""
 print_info "For details see README.md and INSTALL_NOTES.md"
