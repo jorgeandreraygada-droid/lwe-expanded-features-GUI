@@ -132,28 +132,33 @@ get_packages() {
             if [[ "$package_type" == "gui" ]]; then
                 echo "wmctrl xdotool python3-tk python3-pil python3-venv"
             else
-                echo "build-essential cmake libglm-dev libsdl2-dev libmpv-dev liblz4-dev libzstd-dev libglew-dev libavcodec-dev libavformat-dev libavutil-dev git"
+                # Official linux-wallpaperengine dependencies for Ubuntu/Debian
+                # Works for both 22.04 and 24.04 (libmpv1 vs libmpv2 handled by apt)
+                echo "build-essential cmake libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libgl-dev libglew-dev freeglut3-dev libsdl2-dev liblz4-dev libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libxxf86vm-dev libglm-dev libglfw3-dev libmpv-dev mpv libpulse-dev libpulse0 libfftw3-dev git"
             fi
             ;;
         pacman)
             if [[ "$package_type" == "gui" ]]; then
                 echo "wmctrl xdotool tk python-pillow python-virtualenv"
             else
-                echo "base-devel cmake glm sdl2 mpv lz4 zstd glew ffmpeg git"
+                # Arch Linux dependencies (common names)
+                echo "base-devel cmake libxrandr libxinerama libxcursor libxi mesa glew freeglut sdl2 lz4 ffmpeg libxxf86vm glm glfw-x11 mpv pulseaudio fftw git"
             fi
             ;;
         dnf)
             if [[ "$package_type" == "gui" ]]; then
                 echo "wmctrl xdotool python3-tkinter python3-pillow python3-virtualenv"
             else
-                echo "gcc-c++ cmake glm-devel SDL2-devel mpv-devel lz4-devel libzstd-devel glew-devel ffmpeg-devel git"
+                # Official linux-wallpaperengine dependencies for Fedora
+                echo "gcc gcc-c++ cmake libXrandr-devel libXinerama-devel libXcursor-devel libXi-devel mesa-libGL-devel glew-devel freeglut-devel SDL2-devel lz4-devel ffmpeg ffmpeg-free-devel libXxf86vm-devel glm-devel glfw-devel mpv mpv-devel pulseaudio-libs-devel fftw-devel git"
             fi
             ;;
         zypper)
             if [[ "$package_type" == "gui" ]]; then
                 echo "wmctrl xdotool python3-tk python3-pillow python3-virtualenv"
             else
-                echo "gcc-c++ cmake glm-devel libSDL2-devel mpv-devel lz4-devel libzstd-devel glew-devel ffmpeg-devel git"
+                # openSUSE dependencies (common package names)
+                echo "gcc gcc-c++ cmake libXrandr-devel libXinerama-devel libXcursor-devel libXi-devel Mesa-libGL-devel glew-devel freeglut-devel libSDL2-devel liblz4-devel ffmpeg-4-libavcodec-devel ffmpeg-4-libavformat-devel ffmpeg-4-libavutil-devel ffmpeg-4-libswscale-devel libXxf86vm-devel glm-devel glfw-devel mpv libmpv-devel libpulse-devel fftw3-devel git"
             fi
             ;;
         *)
@@ -197,8 +202,25 @@ if [[ "$SKIP_SYSTEM_DEPS" == false ]]; then
     if [[ "$PKG_MANAGER" == "unknown" ]]; then
         print_error "Could not detect package manager."
         print_info "Please install these dependencies manually:"
-        echo "  GUI: wmctrl, xdotool, python3-tk, python3-pillow, python3-venv"
-        echo "  Backend: build-essential/base-devel, cmake, glm, SDL2, mpv, lz4, zstd, glew, ffmpeg, git"
+        echo ""
+        echo "  GUI dependencies:"
+        echo "    wmctrl, xdotool, python3-tk, python3-pillow, python3-venv"
+        echo ""
+        echo "  Backend dependencies (linux-wallpaperengine):"
+        echo "    Ubuntu/Debian:"
+        echo "      build-essential cmake libxrandr-dev libxinerama-dev libxcursor-dev"
+        echo "      libxi-dev libgl-dev libglew-dev freeglut3-dev libsdl2-dev liblz4-dev"
+        echo "      libavcodec-dev libavformat-dev libavutil-dev libswscale-dev"
+        echo "      libxxf86vm-dev libglm-dev libglfw3-dev libmpv-dev mpv libpulse-dev"
+        echo "      libpulse0 libfftw3-dev git"
+        echo ""
+        echo "    Fedora:"
+        echo "      gcc gcc-c++ cmake libXrandr-devel libXinerama-devel libXcursor-devel"
+        echo "      libXi-devel mesa-libGL-devel glew-devel freeglut-devel SDL2-devel"
+        echo "      lz4-devel ffmpeg ffmpeg-free-devel libXxf86vm-devel glm-devel"
+        echo "      glfw-devel mpv mpv-devel pulseaudio-libs-devel fftw-devel git"
+        echo ""
+        print_info "See: https://github.com/Almamu/linux-wallpaperengine#system-requirements"
         if [[ "$NON_INTERACTIVE" == true ]]; then
             print_error "Non-interactive mode: aborting due to missing package manager detection."
             exit 1
@@ -398,9 +420,10 @@ if [[ "$BACKEND_FOUND" == false ]]; then
         if [[ ! -d "$BACKEND_DIR" ]]; then
             print_step "Cloning linux-wallpaperengine repository..."
             if [[ "$DRY_RUN" == true ]]; then
-                echo "[DRY-RUN] git clone https://github.com/Acters/linux-wallpaperengine.git $BACKEND_DIR"
+                echo "[DRY-RUN] git clone --recurse-submodules https://github.com/Almamu/linux-wallpaperengine.git $BACKEND_DIR"
             else
-                if git clone https://github.com/Acters/linux-wallpaperengine.git "$BACKEND_DIR"; then
+                # Use official repository with submodules (as per official docs)
+                if git clone --recurse-submodules https://github.com/Almamu/linux-wallpaperengine.git "$BACKEND_DIR"; then
                     print_success "Repository cloned successfully"
                 else
                     print_error "Failed to clone repository"
@@ -416,7 +439,7 @@ if [[ "$BACKEND_FOUND" == false ]]; then
                 if [[ "$ans_update" =~ ^[Yy] ]]; then
                     print_step "Updating repository..."
                     if [[ "$DRY_RUN" == false ]]; then
-                        (cd "$BACKEND_DIR" && git pull) || print_error "Failed to update repository"
+                        (cd "$BACKEND_DIR" && git pull && git submodule update --init --recursive) || print_error "Failed to update repository"
                     fi
                 fi
             fi
@@ -426,22 +449,23 @@ if [[ "$BACKEND_FOUND" == false ]]; then
         print_step "Building linux-wallpaperengine (this may take a few minutes)..."
         if [[ "$DRY_RUN" == true ]]; then
             echo "[DRY-RUN] mkdir -p $BACKEND_BUILD_DIR"
-            echo "[DRY-RUN] cd $BACKEND_BUILD_DIR && cmake .. && make -j\$(nproc)"
+            echo "[DRY-RUN] cd $BACKEND_BUILD_DIR && cmake -DCMAKE_BUILD_TYPE='Release' .. && make -j\$(nproc)"
         else
             # Create build directory
             mkdir -p "$BACKEND_BUILD_DIR"
             
-            # Configure with CMake
-            print_step "Configuring with CMake..."
-            if ! (cd "$BACKEND_BUILD_DIR" && cmake ..); then
+            # Configure with CMake (using Release build as per official docs)
+            print_step "Configuring with CMake (Release build)..."
+            if ! (cd "$BACKEND_BUILD_DIR" && cmake -DCMAKE_BUILD_TYPE='Release' ..); then
                 print_error "CMake configuration failed"
                 echo ""
-                print_info "Make sure you have all build dependencies installed:"
-                echo "  - build-essential (gcc, g++, make)"
-                echo "  - cmake"
-                echo "  - libglm-dev, libsdl2-dev, libmpv-dev"
-                echo "  - liblz4-dev, libzstd-dev, libglew-dev"
-                echo "  - libavcodec-dev, libavformat-dev, libavutil-dev"
+                print_info "Make sure you have all build dependencies installed."
+                print_info "For your system ($PKG_MANAGER), install:"
+                echo ""
+                MISSING_DEPS=$(get_packages "$PKG_MANAGER" "backend")
+                echo "  $MISSING_DEPS"
+                echo ""
+                print_info "Or run: ./install.sh (without --skip-system-deps)"
                 exit 1
             fi
             
