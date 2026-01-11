@@ -51,7 +51,7 @@ finish-args:
   - --allow=devel
 
 modules:
-   - name: bzip2
+  - name: bzip2
     buildsystem: simple
     build-commands:
       - make -f Makefile-libbz2_so
