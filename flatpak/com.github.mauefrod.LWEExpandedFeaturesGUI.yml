@@ -114,20 +114,30 @@ modules:
     cleanup:
       - '*'
 
-  - name: glfw
-    buildsystem: cmake-ninja
-    config-opts:
+   - name: glfw
+     buildsystem: cmake-ninja
+     config-opts:
       - -DGLFW_BUILD_EXAMPLES=OFF
       - -DGLFW_BUILD_TESTS=OFF
       - -DGLFW_BUILD_DOCS=OFF
       - -DBUILD_SHARED_LIBS=ON
-    post-install:
-      - ln -sf libglfw.so.3 /app/lib/libglfw.so
-    sources:
+      - -DCMAKE_INSTALL_PREFIX=/app
+      - -DCMAKE_INSTALL_LIBDIR=lib  # Ensure it installs to /app/lib
+     post-install:
+      - |
+        cd /app/lib
+        if [ -f libglfw.so.3 ] && [ ! -f libglfw.so ]; then
+          ln -sf libglfw.so.3 libglfw.so
+        fi
+        if [ -f libglfw.so.3.4 ]; then
+          ln -sf libglfw.so.3.4 libglfw.so.3 || true
+          ln -sf libglfw.so.3.4 libglfw.so || true
+        fi
+     sources:
       - type: archive
         url: https://github.com/glfw/glfw/archive/refs/tags/3.4.tar.gz
         sha256: c038d34200234d071fae9345bc455e4a8f2f544ab60150765d7704e08f3dac01
-    cleanup:
+     cleanup:
       - /include
       - /lib/pkgconfig
 
