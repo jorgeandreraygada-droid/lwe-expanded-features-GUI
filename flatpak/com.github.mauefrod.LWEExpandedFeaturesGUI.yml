@@ -156,13 +156,15 @@ modules:
 
   - name: libplacebo
     buildsystem: meson
-    install: true
     config-opts:
       - -Dvulkan=enabled
       - -Dshaderc=enabled
       - -Dglslang=enabled
       - -Ddemos=false
       - -Dopengl=enabled
+    post-install:
+      - ls -la /app/lib/pkgconfig/libplacebo.pc
+      - pkg-config --modversion libplacebo
     sources:
       - type: git
         url: https://code.videolan.org/videolan/libplacebo.git
@@ -177,15 +179,12 @@ modules:
       - -Djavascript=disabled
       - -Dalsa=disabled
       - -Dvapoursynth=disabled
+    build-commands:
+      - pkg-config --exists libplacebo || (echo "libplacebo not found!" && exit 1)
     sources:
       - type: archive
         url: https://github.com/mpv-player/mpv/archive/refs/tags/v0.39.0.tar.gz
         sha256: 2ca92437affb62c2b559b4419ea4785c70d023590500e8a52e95ea3ab4554683
-    cleanup:
-      - /bin
-      - /include
-      - /lib/pkgconfig
-      - /share/man
 
   - name: fftw3
     buildsystem: autotools
