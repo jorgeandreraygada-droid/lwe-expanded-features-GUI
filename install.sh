@@ -8,6 +8,7 @@ set -euo pipefail
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Defaults
@@ -34,6 +35,10 @@ print_error() {
     echo -e "${RED}[✗]${NC} $1"
 }
 
+print_step() {
+    echo -e "${BLUE}[→]${NC} $1"
+}
+
 usage() {
     cat <<EOF
 Usage: $0 [options]
@@ -43,7 +48,7 @@ Options:
   --non-interactive     Don't prompt the user and assume yes where reasonable
   --dry-run             Show what would be done without making changes
   --venv-path PATH      Location for virtual environment (default: .venv)
-  --install-backend     Attempt to clone/install linux-wallpaperengine backend if not found
+  --install-backend     Auto-install linux-wallpaperengine backend locally if not found
   -h, --help            Show this help message
 EOF
 }
@@ -72,6 +77,12 @@ run_or_echo() {
 
 print_header "Linux Wallpaper Engine GUI - Installer"
 
+# Get project root directory
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BACKEND_DIR="$PROJECT_ROOT/linux-wallpaperengine"
+BACKEND_BUILD_DIR="$BACKEND_DIR/build"
+BACKEND_BINARY="$BACKEND_BUILD_DIR/linux-wallpaperengine"
+
 # Basic environment checks
 if [[ "$(uname -s)" != "Linux" ]]; then
     print_error "This installer is intended for Linux systems only."
@@ -96,35 +107,109 @@ if (( PY_MAJOR < 3 )) || { (( PY_MAJOR == 3 )) && (( PY_MINOR < 10 )); }; then
     fi
 fi
 
+# Detect package manager (only once, used throughout the script)
+detect_package_manager() {
+    if command -v apt >/dev/null 2>&1; then
+        echo "apt"
+    elif command -v pacman >/dev/null 2>&1; then
+        echo "pacman"
+    elif command -v dnf >/dev/null 2>&1; then
+        echo "dnf"
+    elif command -v zypper >/dev/null 2>&1; then
+        echo "zypper"
+    else
+        echo "unknown"
+    fi
+}
+
+# Get package list for a specific manager
+get_packages() {
+    local manager="$1"
+    local package_type="$2"  # "gui" or "backend"
+    
+    case "$manager" in
+        apt)
+            if [[ "$package_type" == "gui" ]]; then
+                echo "wmctrl xdotool python3-tk python3-pil python3-venv"
+            else
+                echo "build-essential cmake libglm-dev libsdl2-dev libmpv-dev liblz4-dev libzstd-dev libglew-dev libavcodec-dev libavformat-dev libavutil-dev git"
+            fi
+            ;;
+        pacman)
+            if [[ "$package_type" == "gui" ]]; then
+                echo "wmctrl xdotool tk python-pillow python-virtualenv"
+            else
+                echo "base-devel cmake glm sdl2 mpv lz4 zstd glew ffmpeg git"
+            fi
+            ;;
+        dnf)
+            if [[ "$package_type" == "gui" ]]; then
+                echo "wmctrl xdotool python3-tkinter python3-pillow python3-virtualenv"
+            else
+                echo "gcc-c++ cmake glm-devel SDL2-devel mpv-devel lz4-devel libzstd-devel glew-devel ffmpeg-devel git"
+            fi
+            ;;
+        zypper)
+            if [[ "$package_type" == "gui" ]]; then
+                echo "wmctrl xdotool python3-tk python3-pillow python3-virtualenv"
+            else
+                echo "gcc-c++ cmake glm-devel libSDL2-devel mpv-devel lz4-devel libzstd-devel glew-devel ffmpeg-devel git"
+            fi
+            ;;
+        *)
+            echo ""
+            ;;
+    esac
+}
+
+# Build install command for a specific manager
+get_install_command() {
+    local manager="$1"
+    local packages="$2"
+    
+    case "$manager" in
+        apt)
+            echo "sudo apt update && sudo apt install -y $packages"
+            ;;
+        pacman)
+            echo "sudo pacman -Sy --noconfirm $packages"
+            ;;
+        dnf)
+            echo "sudo dnf install -y $packages"
+            ;;
+        zypper)
+            echo "sudo zypper install -y $packages"
+            ;;
+        *)
+            echo ""
+            ;;
+    esac
+}
+
+# Detect package manager once
+PKG_MANAGER=$(detect_package_manager)
+print_info "Detected package manager: $PKG_MANAGER"
+
 # System dependencies installation
 if [[ "$SKIP_SYSTEM_DEPS" == false ]]; then
     print_header "Installing system dependencies"
-    if command -v apt >/dev/null 2>&1; then
-        PKG_MANAGER="apt"
-        PKG_INSTALL_CMD='sudo apt update && sudo apt install -y wmctrl xdotool python3-tk python3-pil python3-venv'
-    elif command -v pacman >/dev/null 2>&1; then
-        PKG_MANAGER="pacman"
-        PKG_INSTALL_CMD='sudo pacman -Sy --noconfirm wmctrl xdotool tk python-pillow python-virtualenv'
-    elif command -v dnf >/dev/null 2>&1; then
-        PKG_MANAGER="dnf"
-        PKG_INSTALL_CMD='sudo dnf install -y wmctrl xdotool python3-tkinter python3-pillow python3-virtualenv'
-    elif command -v zypper >/dev/null 2>&1; then
-        PKG_MANAGER="zypper"
-        PKG_INSTALL_CMD='sudo zypper install -y wmctrl xdotool python3-tk python3-pillow python3-virtualenv'
-    else
-        PKG_MANAGER="unknown"
-        PKG_INSTALL_CMD=''
-    fi
-
+    
     if [[ "$PKG_MANAGER" == "unknown" ]]; then
-        print_error "Could not detect package manager. Please install system deps manually: wmctrl, xdotool, python3-tk, python3-pillow/python3-pil, python3-venv"
+        print_error "Could not detect package manager."
+        print_info "Please install these dependencies manually:"
+        echo "  GUI: wmctrl, xdotool, python3-tk, python3-pillow, python3-venv"
+        echo "  Backend: build-essential/base-devel, cmake, glm, SDL2, mpv, lz4, zstd, glew, ffmpeg, git"
         if [[ "$NON_INTERACTIVE" == true ]]; then
             print_error "Non-interactive mode: aborting due to missing package manager detection."
             exit 1
         fi
     else
-        print_info "Detected package manager: $PKG_MANAGER"
-        print_info "Run: $PKG_INSTALL_CMD"
+        GUI_DEPS=$(get_packages "$PKG_MANAGER" "gui")
+        BACKEND_DEPS=$(get_packages "$PKG_MANAGER" "backend")
+        ALL_DEPS="$GUI_DEPS $BACKEND_DEPS"
+        PKG_INSTALL_CMD=$(get_install_command "$PKG_MANAGER" "$ALL_DEPS")
+        
+        print_info "Will install: GUI + Backend build dependencies"
         if [[ "$NON_INTERACTIVE" == false ]]; then
             read -p "Proceed to install system packages with $PKG_MANAGER? [Y/n] " ans
             ans=${ans:-Y}
@@ -166,11 +251,11 @@ run_or_echo "pip install --upgrade pip setuptools wheel"
 # Install Python requirements (prefer exact lock if present)
 print_header "Python dependencies"
 if [[ -f "requirements.lock.txt" ]]; then
-    print_info "Found requirements.lock.txt — installing exact pinned versions to reproduce the developer venv"
+    print_info "Found requirements.lock.txt — installing exact pinned versions"
     run_or_echo "pip install -r requirements.lock.txt"
     print_success "Installed exact Python packages from requirements.lock.txt"
 elif [[ -f "requirements.txt" ]]; then
-    print_info "Installing from requirements.txt (floating/ranged versions)"
+    print_info "Installing from requirements.txt"
     run_or_echo "pip install -r requirements.txt"
     print_success "Installed Python packages from requirements.txt"
 else
@@ -180,44 +265,26 @@ fi
 
 # Make scripts executable
 print_header "Fixing permissions"
-if [[ -f "source/core/main.sh" ]]; then
-    run_or_echo "chmod +x source/core/main.sh"
-    print_success "Set executable bit on source/core/main.sh"
-else
-    print_info "source/core/main.sh not found (skipping)"
-fi
-
-if [[ -f "source/core/lwe-state-manager.sh" ]]; then
-    run_or_echo "chmod +x source/core/lwe-state-manager.sh"
-    print_success "Set executable bit on source/core/lwe-state-manager.sh"
-else
-    print_info "source/core/lwe-state-manager.sh not found (skipping)"
-fi
-
-if [[ -f "source/run.sh" ]]; then
-    run_or_echo "chmod +x source/run.sh"
-    print_success "Set executable bit on source/run.sh"
-else
-    print_info "source/run.sh not found (skipping)"
-fi
-
-run_or_echo "chmod +x install.sh || true"
+for script in "source/core/main.sh" "source/core/lwe-state-manager.sh" "source/run.sh" "install.sh"; do
+    if [[ -f "$script" ]]; then
+        run_or_echo "chmod +x $script"
+        print_success "Set executable bit on $script"
+    fi
+done
 
 # Install helper scripts to system paths (optional, with sudo if needed)
 print_header "Installing helper scripts (optional)"
 if [[ -f "flatpak/lwe-window-manager.sh" ]]; then
     INSTALL_DIR="/usr/local/bin"
     if [[ -w "$INSTALL_DIR" ]]; then
-        # Writable without sudo
         run_or_echo "cp flatpak/lwe-window-manager.sh $INSTALL_DIR/"
         run_or_echo "chmod +x $INSTALL_DIR/lwe-window-manager.sh"
         print_success "Installed lwe-window-manager.sh to $INSTALL_DIR/"
     else
-        # Need sudo
         if command -v sudo >/dev/null 2>&1; then
             if [[ "$NON_INTERACTIVE" == false ]]; then
                 echo ""
-                read -p "lwe-window-manager.sh needs to be installed to $INSTALL_DIR (requires sudo). Continue? [Y/n] " ans_install
+                read -p "lwe-window-manager.sh needs sudo to install to $INSTALL_DIR. Continue? [Y/n] " ans_install
                 ans_install=${ans_install:-Y}
             else
                 ans_install=Y
@@ -232,14 +299,8 @@ if [[ -f "flatpak/lwe-window-manager.sh" ]]; then
                     print_success "Installed lwe-window-manager.sh to $INSTALL_DIR/"
                 fi
             fi
-        else
-            print_info "sudo not found; skipping privileged install. Manual installation:"
-            echo "  sudo cp flatpak/lwe-window-manager.sh /usr/local/bin/"
-            echo "  sudo chmod +x /usr/local/bin/lwe-window-manager.sh"
         fi
     fi
-else
-    print_info "flatpak/lwe-window-manager.sh not found (skipping)"
 fi
 
 # Create standard directories
@@ -248,7 +309,7 @@ run_or_echo "mkdir -p ~/.local/share/linux-wallpaper-engine-features/"
 run_or_echo "mkdir -p ~/.config/linux-wallpaper-engine-features/"
 print_success "Application directories ensured"
 
-# Check for linux-wallpaperengine backend (IMPROVED DETECTION)
+# Check for linux-wallpaperengine backend (IMPROVED WITH AUTO-INSTALL)
 print_header "Checking linux-wallpaperengine backend"
 
 BACKEND_FOUND=false
@@ -269,157 +330,274 @@ for binary_name in linux-wallpaperengine wallpaperengine; do
     fi
 done
 
-# Method 2: Check common installation locations
+# Method 2: Check project-local installation
+if [[ "$BACKEND_FOUND" == false ]] && [[ -x "$BACKEND_BINARY" ]]; then
+    BACKEND_PATH="$BACKEND_BINARY"
+    print_success "Backend found in project: $BACKEND_PATH"
+    BACKEND_FOUND=true
+fi
+
+# Method 3: Check common installation locations
 if [[ "$BACKEND_FOUND" == false ]]; then
-    print_info "Not found in PATH, checking common installation locations..."
+    print_info "Not found in PATH or project, checking system locations..."
     
     for location in \
         "$HOME/.local/bin/linux-wallpaperengine" \
         "/usr/local/bin/linux-wallpaperengine" \
         "/usr/bin/linux-wallpaperengine" \
-        "./linux-wallpaperengine/build/linux-wallpaperengine" \
-        "$HOME/linux-wallpaperengine/build/output/linux-wallpaperengine" \
-        "./linux-wallpaperengine/linux-wallpaperengine"; do
+        "$HOME/linux-wallpaperengine/build/output/linux-wallpaperengine"; do
         
         if [[ -x "$location" ]]; then
             BACKEND_PATH="$location"
             print_success "Backend found at: $BACKEND_PATH"
-            
-            # Check if it's in PATH
-            if [[ "$location" == "./"* ]]; then
-                print_info "NOTE: Backend is in local directory. Consider adding $(dirname "$(readlink -f "$location")") to your PATH"
-            elif [[ "$location" == "$HOME/.local/bin/"* ]]; then
-                print_info "NOTE: Ensure $HOME/.local/bin is in your PATH"
-            fi
-            
             BACKEND_FOUND=true
             break
         fi
     done
 fi
 
-# If still not found, provide detailed diagnostics
+# AUTO-INSTALL BACKEND IF NOT FOUND
 if [[ "$BACKEND_FOUND" == false ]]; then
     print_error "linux-wallpaperengine backend not found"
     echo ""
-    print_info "Checked the following locations:"
-    echo "  - System PATH (as 'linux-wallpaperengine' or 'wallpaperengine')"
-    echo "  - $HOME/.local/bin/linux-wallpaperengine"
-    echo "  - /usr/local/bin/linux-wallpaperengine"
-    echo "  - /usr/bin/linux-wallpaperengine"
-    echo "  - ./linux-wallpaperengine/build/linux-wallpaperengine"
-    echo ""
     
-    # Offer to install backend
+    # Determine if we should auto-install
+    SHOULD_INSTALL=false
+    
     if [[ "$INSTALL_BACKEND" == true ]]; then
-        if [[ "$DRY_RUN" == true ]]; then
-            echo "[DRY-RUN] git clone https://github.com/Acters/linux-wallpaperengine.git"
-        else
-            if ! command -v git >/dev/null 2>&1; then
-                print_error "git is required to clone the backend. Install git and retry."
+        SHOULD_INSTALL=true
+    elif [[ "$NON_INTERACTIVE" == false ]]; then
+        echo -e "${YELLOW}Would you like to automatically build and install linux-wallpaperengine locally?${NC}"
+        echo "This will:"
+        echo "  - Clone the repository to: $BACKEND_DIR"
+        echo "  - Build the backend (takes 2-5 minutes)"
+        echo "  - Keep it isolated within this project"
+        echo ""
+        read -p "Auto-install backend? [Y/n] " ans_backend
+        ans_backend=${ans_backend:-Y}
+        if [[ "$ans_backend" =~ ^[Yy] ]]; then
+            SHOULD_INSTALL=true
+        fi
+    fi
+    
+    if [[ "$SHOULD_INSTALL" == true ]]; then
+        print_header "Building linux-wallpaperengine locally"
+        
+        # Check for required tools
+        if ! command -v git >/dev/null 2>&1; then
+            print_error "git is required but not found. Please install git first."
+            exit 1
+        fi
+        
+        if ! command -v cmake >/dev/null 2>&1; then
+            print_error "cmake is required but not found. Please install build dependencies first."
+            exit 1
+        fi
+        
+        # Clone repository if not exists
+        if [[ ! -d "$BACKEND_DIR" ]]; then
+            print_step "Cloning linux-wallpaperengine repository..."
+            if [[ "$DRY_RUN" == true ]]; then
+                echo "[DRY-RUN] git clone https://github.com/Acters/linux-wallpaperengine.git $BACKEND_DIR"
             else
-                print_info "Cloning linux-wallpaperengine to ./linux-wallpaperengine"
-                if git clone https://github.com/Acters/linux-wallpaperengine.git; then
-                    print_success "Backend repository cloned successfully"
-                    echo ""
-                    print_info "To build and install the backend:"
-                    echo "  cd linux-wallpaperengine"
-                    echo "  mkdir build && cd build"
-                    echo "  cmake .."
-                    echo "  make"
-                    echo "  sudo make install  # or copy the binary to ~/.local/bin/"
-                    echo ""
-                    print_info "Then re-run this installer to verify the installation"
+                if git clone https://github.com/Acters/linux-wallpaperengine.git "$BACKEND_DIR"; then
+                    print_success "Repository cloned successfully"
                 else
-                    print_error "Failed to clone backend repository"
+                    print_error "Failed to clone repository"
+                    exit 1
+                fi
+            fi
+        else
+            print_info "Repository already exists at $BACKEND_DIR"
+            
+            # Offer to update
+            if [[ "$NON_INTERACTIVE" == false ]]; then
+                read -p "Update repository to latest version? [y/N] " ans_update
+                if [[ "$ans_update" =~ ^[Yy] ]]; then
+                    print_step "Updating repository..."
+                    if [[ "$DRY_RUN" == false ]]; then
+                        (cd "$BACKEND_DIR" && git pull) || print_error "Failed to update repository"
+                    fi
                 fi
             fi
         fi
+        
+        # Build the backend
+        print_step "Building linux-wallpaperengine (this may take a few minutes)..."
+        if [[ "$DRY_RUN" == true ]]; then
+            echo "[DRY-RUN] mkdir -p $BACKEND_BUILD_DIR"
+            echo "[DRY-RUN] cd $BACKEND_BUILD_DIR && cmake .. && make -j\$(nproc)"
+        else
+            # Create build directory
+            mkdir -p "$BACKEND_BUILD_DIR"
+            
+            # Configure with CMake
+            print_step "Configuring with CMake..."
+            if ! (cd "$BACKEND_BUILD_DIR" && cmake ..); then
+                print_error "CMake configuration failed"
+                echo ""
+                print_info "Make sure you have all build dependencies installed:"
+                echo "  - build-essential (gcc, g++, make)"
+                echo "  - cmake"
+                echo "  - libglm-dev, libsdl2-dev, libmpv-dev"
+                echo "  - liblz4-dev, libzstd-dev, libglew-dev"
+                echo "  - libavcodec-dev, libavformat-dev, libavutil-dev"
+                exit 1
+            fi
+            
+            # Build with make
+            print_step "Compiling (using all CPU cores)..."
+            if ! (cd "$BACKEND_BUILD_DIR" && make -j"$(nproc)"); then
+                print_error "Build failed"
+                exit 1
+            fi
+            
+            # Verify binary was created
+            if [[ -x "$BACKEND_BINARY" ]]; then
+                print_success "Backend built successfully: $BACKEND_BINARY"
+                
+                # Get version
+                VERSION_INFO=$("$BACKEND_BINARY" --version 2>/dev/null || echo "version unknown")
+                print_info "Version: $VERSION_INFO"
+                
+                BACKEND_FOUND=true
+                BACKEND_PATH="$BACKEND_BINARY"
+            else
+                print_error "Build completed but binary not found at expected location"
+                exit 1
+            fi
+        fi
     else
+        # User declined auto-install
+        echo ""
         print_info "Installation options:"
         echo ""
-        echo "  Option 1: Re-run with --install-backend to clone the repository"
+        echo "  Option 1: Re-run installer with auto-install"
         echo "    ./install.sh --install-backend"
         echo ""
-        echo "  Option 2: Manual installation from source"
+        echo "  Option 2: Manual installation"
         echo "    git clone https://github.com/Acters/linux-wallpaperengine.git"
         echo "    cd linux-wallpaperengine"
         echo "    mkdir build && cd build"
         echo "    cmake .."
-        echo "    make"
+        echo "    make -j\$(nproc)"
         echo "    sudo make install"
         echo ""
-        echo "  Option 3: Check if your distribution has a package"
+        echo "  Option 3: Distribution package (if available)"
         echo "    Arch (AUR): yay -S linux-wallpaperengine-git"
         echo ""
+        print_error "Cannot continue without backend"
+        exit 1
     fi
-    
-    # Diagnostic commands
-    print_info "To diagnose backend installation issues, run:"
-    echo "  which linux-wallpaperengine"
-    echo "  echo \$PATH"
-    echo "  ls -la ~/.local/bin/linux-wallpaperengine 2>/dev/null"
-    echo "  ls -la /usr/local/bin/linux-wallpaperengine 2>/dev/null"
 fi
 
-# Optional: create desktop entry
-print_header "Desktop entry (optional)"
+# Desktop entry management (with cleanup of old entries)
+print_header "Desktop entry management"
 DESKTOP_FILE="$HOME/.local/share/applications/linux-wallpaper-engine-features.desktop"
+DESKTOP_DIR="$HOME/.local/share/applications"
+
+# Clean up any old/broken desktop entries
 if [[ -f "$DESKTOP_FILE" ]]; then
-    print_info "Desktop entry already exists: $DESKTOP_FILE"
-else
-    if [[ "$NON_INTERACTIVE" == false ]]; then
-        read -p "Create a desktop entry to launch the app from the menu? [Y/n] " ans2
-        ans2=${ans2:-Y}
-    else
-        ans2=Y
-    fi
-    if [[ "$ans2" =~ ^[Yy] ]]; then
-        if [[ "$DRY_RUN" == true ]]; then
-            echo "[DRY-RUN] create $DESKTOP_FILE"
+    print_info "Found existing desktop entry"
+    
+    # Check if the Exec path in the old entry still exists
+    if [[ "$DRY_RUN" == false ]]; then
+        OLD_EXEC=$(grep "^Exec=" "$DESKTOP_FILE" 2>/dev/null | cut -d= -f2- | cut -d' ' -f1 || echo "")
+        
+        if [[ -n "$OLD_EXEC" ]] && [[ ! -f "$OLD_EXEC" ]]; then
+            print_info "Old desktop entry points to missing file: $OLD_EXEC"
+            print_step "Removing outdated desktop entry..."
+            rm -f "$DESKTOP_FILE"
+            print_success "Removed outdated desktop entry"
+        elif [[ -n "$OLD_EXEC" ]] && [[ "$OLD_EXEC" != "$PROJECT_ROOT/source/run.sh" ]]; then
+            print_info "Old desktop entry points to different installation: $OLD_EXEC"
+            print_step "Updating desktop entry to current installation..."
+            rm -f "$DESKTOP_FILE"
+            print_success "Removed old desktop entry"
         else
-            cat > "$DESKTOP_FILE" <<EOF
-[Desktop Entry]
-Name=Linux Wallpaper Engine GUI
-Exec=$PWD/source/run.sh
-Terminal=false
-Type=Application
-Icon=preferences-desktop-wallpaper
-Categories=Utility;Graphics;
-EOF
-            print_success "Created desktop entry: $DESKTOP_FILE"
+            print_info "Desktop entry is up to date"
         fi
     fi
 fi
 
+# Create/recreate desktop entry
+if [[ ! -f "$DESKTOP_FILE" ]]; then
+    if [[ "$NON_INTERACTIVE" == false ]]; then
+        read -p "Create a desktop entry to launch from the menu? [Y/n] " ans2
+        ans2=${ans2:-Y}
+    else
+        ans2=Y
+    fi
+    
+    if [[ "$ans2" =~ ^[Yy] ]]; then
+        if [[ "$DRY_RUN" == true ]]; then
+            echo "[DRY-RUN] create $DESKTOP_FILE"
+        else
+            mkdir -p "$DESKTOP_DIR"
+            cat > "$DESKTOP_FILE" <<EOF
+[Desktop Entry]
+Name=Linux Wallpaper Engine GUI
+Comment=GUI for managing animated wallpapers with linux-wallpaperengine
+Exec=$PROJECT_ROOT/source/run.sh
+Path=$PROJECT_ROOT
+Terminal=false
+Type=Application
+Icon=preferences-desktop-wallpaper
+Categories=Utility;Graphics;Settings;
+StartupNotify=false
+X-GNOME-UsesNotifications=false
+EOF
+            chmod +x "$DESKTOP_FILE"
+            
+            # Update desktop database to refresh menu
+            if command -v update-desktop-database >/dev/null 2>&1; then
+                update-desktop-database "$DESKTOP_DIR" 2>/dev/null || true
+            fi
+            
+            print_success "Created desktop entry: $DESKTOP_FILE"
+            print_info "Application should now appear in your application menu"
+        fi
+    fi
+else
+    print_success "Desktop entry is current: $DESKTOP_FILE"
+fi
+
 # Final summary
 print_header "Installation complete"
-print_success "Installer finished"
 
 echo ""
 if [[ "$BACKEND_FOUND" == true ]]; then
-    print_success "Backend detected at: $BACKEND_PATH"
+    print_success "✓ Backend installed: $BACKEND_PATH"
+    
+    # Show if it's local or system
+    if [[ "$BACKEND_PATH" == "$PROJECT_ROOT"* ]]; then
+        print_info "Backend is installed locally within this project (isolated installation)"
+    else
+        print_info "Backend is installed system-wide"
+    fi
 else
-    print_error "Backend NOT detected - you must install linux-wallpaperengine before using this GUI"
+    print_error "✗ Backend NOT installed"
 fi
 
-echo ""
-print_info "Next steps:"
-if [[ "$BACKEND_FOUND" == false ]]; then
-    echo "  1. Install linux-wallpaperengine backend (see instructions above)"
-    echo "  2. Re-run this installer to verify: ./install.sh"
-    echo "  3. Launch the app: $PWD/source/run.sh"
-else
-    echo "  - Launch the app: $PWD/source/run.sh (or from the desktop menu if created)"
-    echo "  - To run inside the virtualenv: source $VENV_PATH/bin/activate && python3 source/GUI.py"
-fi
+print_success "✓ Python virtual environment configured"
+print_success "✓ GUI application ready"
 
 echo ""
-print_info "For details see README.md and INSTALL_NOTES.md"
+print_header "Next steps"
+echo "  Launch the application:"
+echo "    $PROJECT_ROOT/source/run.sh"
+echo ""
+echo "  Or from the desktop menu if you created the entry"
+echo ""
+print_info "Logs are stored in: ~/.local/share/linux-wallpaper-engine-features/logs.txt"
+print_info "For more details see: README.md and INSTALL_NOTES.md"
 
 # Deactivate if we activated
 if [[ "$DRY_RUN" != true ]]; then
     deactivate 2>/dev/null || true
 fi
+
+echo ""
+print_success "Installation successful! Enjoy your animated wallpapers! 🎨"
 
 exit 0
