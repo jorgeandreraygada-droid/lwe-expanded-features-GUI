@@ -166,7 +166,7 @@ modules:
       - /include
       - /lib/pkgconfig
 
-   - name: libplacebo
+  - name: libplacebo
     buildsystem: meson
     config-opts:
       - -Dvulkan=disabled
