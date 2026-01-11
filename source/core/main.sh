@@ -68,7 +68,7 @@ test_wmctrl() {
 }
 
 POOL=()
-ENGINE=linux-wallpaperengine
+ENGINE=""  # Will be detected at startup
 ENGINE_ARGS=()
 SOUND_ARGS=()
 REMOVE_ABOVE="false"
@@ -84,6 +84,106 @@ log() {
 
 log "==================== NEW EXECUTION ===================="
 log "Running in Flatpak: $IN_FLATPAK"
+
+###############################################
+#  ENGINE DETECTION (ROBUST)
+###############################################
+detect_engine() {
+    log "Starting engine detection..."
+    
+    # Strategy 1: Check PATH for common binary names
+    for binary in linux-wallpaperengine wallpaperengine; do
+        if command -v "$binary" >/dev/null 2>&1; then
+            ENGINE="$binary"
+            local engine_path
+            engine_path=$(command -v "$binary")
+            log "Engine binary detected in PATH: $engine_path"
+            
+            # Try to get version info
+            local version_info
+            version_info=$("$binary" --version 2>/dev/null || echo "unknown")
+            log "Engine version: $version_info"
+            return 0
+        fi
+    done
+    
+    # Strategy 2: Check common installation locations
+    local -a common_locations=(
+        "$HOME/.local/bin/linux-wallpaperengine"
+        "/usr/local/bin/linux-wallpaperengine"
+        "/usr/bin/linux-wallpaperengine"
+        "./linux-wallpaperengine/build/linux-wallpaperengine"
+        "./linux-wallpaperengine/linux-wallpaperengine"
+    )
+    
+    for location in "${common_locations[@]}"; do
+        if [[ -x "$location" ]]; then
+            ENGINE="$location"
+            log "Engine binary detected at: $location"
+            
+            # Expand to absolute path if relative
+            if [[ "$location" == "./"* ]]; then
+                ENGINE="$(cd "$(dirname "$location")" && pwd)/$(basename "$location")"
+                log "Resolved to absolute path: $ENGINE"
+            fi
+            
+            return 0
+        fi
+    done
+    
+    # Strategy 3: In Flatpak, try to use host's engine via flatpak-spawn
+    if [[ "$IN_FLATPAK" == "true" ]]; then
+        log "Flatpak environment detected, trying host system engine"
+        
+        if command -v flatpak-spawn >/dev/null 2>&1; then
+            # Test if engine is available on host
+            if flatpak-spawn --host which linux-wallpaperengine >/dev/null 2>&1; then
+                ENGINE="flatpak-spawn --host linux-wallpaperengine"
+                log "Engine found on host system (via flatpak-spawn)"
+                return 0
+            elif flatpak-spawn --host which wallpaperengine >/dev/null 2>&1; then
+                ENGINE="flatpak-spawn --host wallpaperengine"
+                log "Engine found on host system as 'wallpaperengine' (via flatpak-spawn)"
+                return 0
+            else
+                log "Engine not found on host system"
+            fi
+        else
+            log "flatpak-spawn not available, cannot access host system"
+        fi
+    fi
+    
+    # Engine not found anywhere
+    log "ERROR: linux-wallpaperengine binary not found"
+    log "Searched locations:"
+    log "  - PATH (as linux-wallpaperengine, wallpaperengine)"
+    log "  - $HOME/.local/bin/linux-wallpaperengine"
+    log "  - /usr/local/bin/linux-wallpaperengine"
+    log "  - /usr/bin/linux-wallpaperengine"
+    log "  - ./linux-wallpaperengine/build/linux-wallpaperengine"
+    if [[ "$IN_FLATPAK" == "true" ]]; then
+        log "  - Host system (via flatpak-spawn)"
+    fi
+    
+    return 1
+}
+
+# Detect engine at startup
+if ! detect_engine; then
+    log "CRITICAL: Cannot proceed without engine binary"
+    echo "ERROR: linux-wallpaperengine not found in PATH or common locations" >&2
+    echo "" >&2
+    echo "Please install linux-wallpaperengine first:" >&2
+    echo "  - From source: https://github.com/Acters/linux-wallpaperengine" >&2
+    echo "  - Arch Linux (AUR): yay -S linux-wallpaperengine-git" >&2
+    echo "" >&2
+    echo "Or ensure it's in one of these locations:" >&2
+    echo "  - System PATH (/usr/bin, /usr/local/bin, ~/.local/bin)" >&2
+    echo "  - ./linux-wallpaperengine/build/linux-wallpaperengine" >&2
+    exit 1
+fi
+
+log "Using engine: $ENGINE"
 
 ###############################################
 #  FLATPAK WINDOW DETECTION HELPER
@@ -363,9 +463,19 @@ apply_wallpaper() {
     full_args+=("$path")
 
     # Lanzamos el engine con todos los argumentos
-    "$ENGINE" "${full_args[@]}" &
+    log "Executing: $ENGINE ${full_args[*]}"
+    
+    # Handle ENGINE commands that might contain spaces (like "flatpak-spawn --host linux-wallpaperengine")
+    if [[ "$ENGINE" == *" "* ]]; then
+        # ENGINE contains spaces, execute as shell command
+        $ENGINE "${full_args[@]}" &
+    else
+        # ENGINE is a single binary path
+        "$ENGINE" "${full_args[@]}" &
+    fi
+    
     local new_pid=$!
-    log "Engine launched with PID $new_pid, args: $ENGINE ${full_args[*]}"
+    log "Engine launched with PID $new_pid"
     
     # Start background monitor to continuously try to apply window flags
     # This is a workaround for Flatpak restrictions on wmctrl
