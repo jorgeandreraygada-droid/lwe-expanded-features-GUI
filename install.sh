@@ -278,7 +278,7 @@ if [[ "$BACKEND_FOUND" == false ]]; then
         "/usr/local/bin/linux-wallpaperengine" \
         "/usr/bin/linux-wallpaperengine" \
         "./linux-wallpaperengine/build/linux-wallpaperengine" \
-        "$HOME/linux-wallpaperengine/build/output/linux-wallpaperengine" \  # ADD THIS LINE
+        "$HOME/linux-wallpaperengine/build/output/linux-wallpaperengine" \
         "./linux-wallpaperengine/linux-wallpaperengine"; do
         
         if [[ -x "$location" ]]; then
