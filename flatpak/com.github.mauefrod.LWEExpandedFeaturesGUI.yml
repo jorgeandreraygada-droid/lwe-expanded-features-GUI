@@ -158,7 +158,7 @@ modules:
   - name: libplacebo
     buildsystem: meson
     config-opts:
-      - -Dvulkan=disabled
+      - -Dvulkan=enabled
       - -Dshaderc=disabled
       - -Dglslang=disabled
       - -Ddemos=false
