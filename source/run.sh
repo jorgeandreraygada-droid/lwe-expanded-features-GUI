@@ -1,6 +1,5 @@
 #!/bin/bash
 set -euo pipefail
-
 # Linux Wallpaper Engine GUI - Application Launcher
 # This script activates the virtual environment and runs the GUI application
 
@@ -35,12 +34,61 @@ else
     fi
 fi
 
+# Enhanced backend detection - check multiple locations
+detect_backend() {
+    local backend_path=""
+    
+    # Strategy 1: Check if already in PATH
+    if command -v linux-wallpaperengine >/dev/null 2>&1; then
+        backend_path=$(command -v linux-wallpaperengine)
+        echo -e "${GREEN}[✓]${NC} Backend found in PATH: $backend_path"
+        return 0
+    fi
+    
+    # Strategy 2: Check common installation locations
+    local -a locations=(
+        "$HOME/.local/bin/linux-wallpaperengine"
+        "/usr/local/bin/linux-wallpaperengine"
+        "/usr/bin/linux-wallpaperengine"
+        "$HOME/linux-wallpaperengine/build/output/linux-wallpaperengine"
+        "$ROOT_DIR/linux-wallpaperengine/build/linux-wallpaperengine"
+    )
+    
+    for location in "${locations[@]}"; do
+        if [[ -x "$location" ]]; then
+            backend_path="$location"
+            # Add the directory to PATH for this session
+            local backend_dir
+            backend_dir=$(dirname "$location")
+            export PATH="$backend_dir:$PATH"
+            echo -e "${GREEN}[✓]${NC} Backend found at: $backend_path"
+            echo -e "${YELLOW}[i]${NC} Added $backend_dir to PATH for this session"
+            return 0
+        fi
+    done
+    
+    return 1
+}
+
 # Check if linux-wallpaperengine is installed
-if ! command -v linux-wallpaperengine >/dev/null 2>&1; then
-    echo -e "${RED}[✗]${NC} linux-wallpaperengine not found in PATH"
-    echo -e "${YELLOW}[i]${NC} Install it from: https://github.com/Acters/linux-wallpaperengine"
-    echo -e "${YELLOW}[i]${NC} The application will still launch but won't function properly"
+if ! detect_backend; then
+    echo -e "${RED}[✗]${NC} linux-wallpaperengine not found in PATH or common locations"
     echo ""
+    echo -e "${YELLOW}[i]${NC} Searched locations:"
+    echo "  - System PATH"
+    echo "  - $HOME/.local/bin/"
+    echo "  - /usr/local/bin/"
+    echo "  - /usr/bin/"
+    echo "  - $HOME/linux-wallpaperengine/build/output/"
+    echo "  - $ROOT_DIR/linux-wallpaperengine/build/"
+    echo ""
+    echo -e "${YELLOW}[i]${NC} Install options:"
+    echo "  1. Copy to ~/.local/bin: cp ~/linux-wallpaperengine/build/output/linux-wallpaperengine ~/.local/bin/"
+    echo "  2. Add to PATH: export PATH=\"\$HOME/linux-wallpaperengine/build/output:\$PATH\""
+    echo "  3. Install from source: https://github.com/Acters/linux-wallpaperengine"
+    echo ""
+    echo -e "${RED}[✗]${NC} Cannot continue without backend. Exiting."
+    exit 1
 fi
 
 # Change to source directory
@@ -58,8 +106,8 @@ trap 'deactivate 2>/dev/null || true' EXIT
 # Run the application (use venv python explicitly)
 echo -e "${GREEN}[✓]${NC} Starting Linux Wallpaper Engine GUI..."
 PYTHONUNBUFFERED=1 "$VENV_PY" GUI.py "$@"
-
 EXIT_CODE=$?
+
 if [[ $EXIT_CODE -ne 0 ]]; then
     echo -e "${RED}[✗]${NC} GUI exited with code $EXIT_CODE"
 else
