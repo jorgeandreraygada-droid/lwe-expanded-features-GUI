@@ -81,7 +81,7 @@ print_header "Linux Wallpaper Engine GUI - Installer"
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKEND_DIR="$PROJECT_ROOT/linux-wallpaperengine"
 BACKEND_BUILD_DIR="$BACKEND_DIR/build"
-BACKEND_BINARY="$BACKEND_BUILD_DIR/linux-wallpaperengine"
+BACKEND_BINARY="$BACKEND_BUILD_DIR/output/linux-wallpaperengine"  # Official build outputs to build/output/
 
 # Basic environment checks
 if [[ "$(uname -s)" != "Linux" ]]; then
