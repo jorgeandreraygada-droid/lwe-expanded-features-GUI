@@ -114,6 +114,7 @@ detect_engine() {
         "/usr/bin/linux-wallpaperengine"
         "./linux-wallpaperengine/build/linux-wallpaperengine"
         "./linux-wallpaperengine/linux-wallpaperengine"
+        "./linux-wallpaperengine/build/output/linux-wallpaperengine"
     )
     
     for location in "${common_locations[@]}"; do
