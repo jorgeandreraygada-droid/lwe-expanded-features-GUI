@@ -1,0 +1,11 @@
+[Unit]
+Description=Linux Wallpaper Engine
+After=graphical.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /path/to/startup.py
+RemainAfterExit=yes
+
+[Install]
+WantedBy=default.target
