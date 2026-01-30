@@ -234,6 +234,89 @@ class EventHandlers:
         except Exception:
             pass
     
+
+    # ========== Startup ==========
+    
+    def on_startup_changed(self):
+        """Handles the startup checkbox toggle"""
+        flags = self.ui["flags_panel"]
+        enabled = flags.startup.get()
+        
+        self.log(f"[HANDLER] Startup toggle changed to: {enabled}")
+        
+        try:
+            # Importar las funciones desde systemd_manager
+            import sys
+            from pathlib import Path
+            
+            CURRENT_DIR = Path(__file__).parent.absolute()
+            GUI_DIR = CURRENT_DIR.parent
+            SOURCE_DIR = GUI_DIR.parent
+            CORE_DIR = SOURCE_DIR / "core"
+            
+            if str(CORE_DIR) not in sys.path:
+                sys.path.insert(0, str(CORE_DIR))
+            
+            from systemd_manager import enable_startup, disable_startup
+            
+            # Usar la función correcta según el estado
+            if enabled:
+                success, message = enable_startup()
+            else:
+                success, message = disable_startup()
+            
+            if success:
+                self.config["__run_at_startup__"] = enabled
+                save_config(self.config)
+                self.log(f"[HANDLER] {message}")
+            else:
+                # Show error and revert checkbox
+                self.log(f"[ERROR] {message}")
+                messagebox.showerror("Startup Configuration Error", message)
+                flags.startup.set(not enabled)
+        
+        except Exception as e:
+            self.log(f"[ERROR] Unexpected error: {str(e)}")
+            messagebox.showerror("Error", f"Failed to configure startup: {str(e)}")
+            flags.startup.set(not enabled)
+    
+    def sync_startup_state(self):
+        """Syncs config with actual systemd state on startup"""
+        try:
+            # Importar la función desde systemd_manager
+            import sys
+            from pathlib import Path
+            
+            CURRENT_DIR = Path(__file__).parent.absolute()
+            GUI_DIR = CURRENT_DIR.parent
+            SOURCE_DIR = GUI_DIR.parent
+            CORE_DIR = SOURCE_DIR / "core"
+            
+            if str(CORE_DIR) not in sys.path:
+                sys.path.insert(0, str(CORE_DIR))
+            
+            from systemd_manager import is_service_enabled
+            
+            systemd_enabled = is_service_enabled()
+            config_enabled = self.config.get("__run_at_startup__", False)
+            
+            if systemd_enabled != config_enabled:
+                self.log(f"[HANDLER] Syncing startup state: systemd={systemd_enabled}, config={config_enabled}")
+                self.config["__run_at_startup__"] = systemd_enabled
+                save_config(self.config)
+                
+                # Update UI if flags_panel exists and has startup checkbox
+                if 'flags_panel' in self.ui and hasattr(self.ui['flags_panel'], 'startup'):
+                    self.ui['flags_panel'].startup.set(systemd_enabled)
+                
+                return systemd_enabled
+            
+            return config_enabled
+        
+        except Exception as e:
+            self.log(f"[ERROR] Failed to sync startup state: {str(e)}")
+            return False
+
     # ========== Engine ==========
     
     def on_execute(self):

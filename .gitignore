@@ -76,3 +76,18 @@ flatpak/*.tar.bz2
 !README.md
 
 # End of file
+source/gui/__pycache__/config.cpython-313.pyc
+source/gui/__pycache__/engine_controller.cpython-313.pyc
+source/gui/__pycache__/groups.cpython-313.pyc
+source/gui/__pycache__/gui_engine.cpython-313.pyc
+source/gui/__pycache__/wallpaper_loader.cpython-313.pyc
+source/gui/event_handler/__pycache__/event_handler.cpython-313.pyc
+source/gui/gallery_view/__pycache__/context_menus.cpython-313.pyc
+source/gui/gallery_view/__pycache__/dialogs.cpython-313.pyc
+source/gui/gallery_view/__pycache__/gallery_manager.cpython-313.pyc
+source/gui/gallery_view/__pycache__/gallery_view.cpython-313.pyc
+source/gui/gallery_view/__pycache__/thumbnails.cpython-313.pyc
+source/gui/ui_components/__pycache__/directory_controls.cpython-313.pyc
+source/gui/ui_components/__pycache__/flags.cpython-313.pyc
+source/gui/ui_components/__pycache__/gallery_canvas.cpython-313.pyc
+source/gui/ui_components/__pycache__/log_area.cpython-313.pyc

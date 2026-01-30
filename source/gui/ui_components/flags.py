@@ -13,7 +13,8 @@ class FlagsPanel:
         self.above_flag = BooleanVar()
         self.random_mode = BooleanVar()
         self.logs_visible = BooleanVar(value=True)  # Los logs son visibles por defecto
-        
+        self.startup = BooleanVar()
+
         # Checkboxes
         self.window_checkbox = Checkbutton(
             self.frame,
@@ -28,6 +29,18 @@ class FlagsPanel:
         )
         self.window_checkbox.grid(column=0, row=0, padx=5, pady=5, sticky="w")
         
+        self.startup_checkbox = Checkbutton(
+            self.frame, text="run at startup",
+            variable=self.startup,
+            bg="#0a0e27",
+            fg="#FFFFFF",
+            font=("Arial", 9, "bold"),
+            activebackground="#0a0e27",
+            activeforeground="#ff3333",
+            selectcolor="#0a0e27"
+        )
+        self.startup_checkbox.grid(column=0, row=1, padx=5, pady=5, sticky="w")
+
         self.above_checkbox = Checkbutton(
             self.frame,
             text="remove above prio",
@@ -39,7 +52,7 @@ class FlagsPanel:
             activeforeground="#ff3333",
             selectcolor="#0a0e27"
         )
-        self.above_checkbox.grid(column=0, row=1, padx=5, pady=5, sticky="w")
+        self.above_checkbox.grid(column=0, row=2, padx=5, pady=5, sticky="w")
         
         self.random_checkbox = Checkbutton(
             self.frame,
@@ -52,7 +65,7 @@ class FlagsPanel:
             activeforeground="#ff3333",
             selectcolor="#0a0e27"
         )
-        self.random_checkbox.grid(column=0, row=2, padx=5, pady=5, sticky="w")
+        self.random_checkbox.grid(column=0, row=3, padx=5, pady=5, sticky="w")
         
         self.logs_checkbox = Checkbutton(
             self.frame,
@@ -65,15 +78,15 @@ class FlagsPanel:
             activeforeground="#ff3333",
             selectcolor="#0a0e27"
         )
-        self.logs_checkbox.grid(column=0, row=3, padx=5, pady=5, sticky="w")
+        self.logs_checkbox.grid(column=0, row=4, padx=5, pady=5, sticky="w")
         
         # Botón back
         self.back_button = Button(self.frame, text="BACK", bg="#004466", fg="#FFFFFF", font=("Arial", 9, "bold"), activebackground="#0066aa", activeforeground="#ff3333", bd=2, relief="raised", cursor="hand2")
-        self.back_button.grid(column=0, row=4, padx=5, pady=(10, 5))
+        self.back_button.grid(column=0, row=5, padx=5, pady=(10, 5))
         
         # Botón clear log
         self.clear_log_button = Button(self.frame, text="CLEAR LOG", bg="#661111", fg="#ffffff", font=("Arial", 9, "bold"), activebackground="#881111", activeforeground="#ff3333", bd=2, relief="raised", cursor="hand2")
-        self.clear_log_button.grid(column=0, row=5, padx=5, pady=5)
+        self.clear_log_button.grid(column=0, row=6, padx=5, pady=5)
         
         # Área para widgets dinámicos (timer)
         self.dynamic_widgets = []
