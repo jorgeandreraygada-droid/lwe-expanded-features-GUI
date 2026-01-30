@@ -8,8 +8,7 @@ SERVICE_NAME = "linux-wallpaperengine.service"
 SERVICE_PATH = SYSTEMD_USER_DIR / SERVICE_NAME
 
 # Path to your existing service.sh script and template
-# Since systemd_manager.py is in source/core/
-SCRIPT_DIR = Path(__file__).parent.absolute()  # This is source/core/
+SCRIPT_DIR = Path(__file__).parent.absolute()
 SERVICE_SCRIPT = SCRIPT_DIR / "startup_handler.sh"
 SERVICE_TEMPLATE_FILE = SCRIPT_DIR / "startup_service.template"
 
@@ -46,7 +45,6 @@ def create_service_file():
         service_content = load_service_template()
         SYSTEMD_USER_DIR.mkdir(parents=True, exist_ok=True)
         SERVICE_PATH.write_text(service_content)
-        
         return True, "Service file created successfully"
     except Exception as e:
         return False, f"Failed to create service file: {e}"
@@ -81,14 +79,12 @@ def enable_startup():
 def disable_startup():
     """Disable the systemd service"""
     try:
-        # Disable the service
         subprocess.run(
             ["systemctl", "--user", "disable", SERVICE_NAME],
             check=True,
             capture_output=True
         )
         
-        # Optionally stop if running
         subprocess.run(
             ["systemctl", "--user", "stop", SERVICE_NAME],
             capture_output=True

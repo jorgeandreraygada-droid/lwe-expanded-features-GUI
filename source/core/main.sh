@@ -90,7 +90,19 @@ log "Running in Flatpak: $IN_FLATPAK"
 ###############################################
 detect_engine() {
     log "Starting engine detection..."
-    
+   
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+    # Strategy 2: Check common installation locations
+    local -a common_locations=(
+    "$HOME/.local/bin/linux-wallpaperengine"
+    "/usr/local/bin/linux-wallpaperengine"
+    "/usr/bin/linux-wallpaperengine"
+    "$PROJECT_ROOT/linux-wallpaperengine/build/linux-wallpaperengine"  # ← Ahora absoluta
+    "$PROJECT_ROOT/linux-wallpaperengine/linux-wallpaperengine"
+    "$PROJECT_ROOT/linux-wallpaperengine/build/output/linux-wallpaperengine"
+)
     # Strategy 1: Check PATH for common binary names
     for binary in linux-wallpaperengine wallpaperengine; do
         if command -v "$binary" >/dev/null 2>&1; then
@@ -106,17 +118,7 @@ detect_engine() {
             return 0
         fi
     done
-    
-    # Strategy 2: Check common installation locations
-    local -a common_locations=(
-        "$HOME/.local/bin/linux-wallpaperengine"
-        "/usr/local/bin/linux-wallpaperengine"
-        "/usr/bin/linux-wallpaperengine"
-        "./linux-wallpaperengine/build/linux-wallpaperengine"
-        "./linux-wallpaperengine/linux-wallpaperengine"
-        "./linux-wallpaperengine/build/output/linux-wallpaperengine"
-    )
-    
+
     for location in "${common_locations[@]}"; do
         if [[ -x "$location" ]]; then
             ENGINE="$location"

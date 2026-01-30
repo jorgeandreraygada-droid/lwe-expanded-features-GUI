@@ -28,12 +28,12 @@ class WallpaperEngineGUI:
         self.main_window.config(bg="#1F0120")
         # Ajustar tamaño inicial a la resolución de pantalla
         self.main_window.update_idletasks()
-        # sw = self.main_window.winfo_screenwidth()
-        # sh = self.main_window.winfo_screenheight()
+        sw = self.main_window.winfo_screenwidth()
+        sh = self.main_window.winfo_screenheight()
         # Reservar un pequeño margen para la barra del sistema
-        # geom_w = sw
-        # geom_h = sh
-        self.main_window.geometry(f"{800}x{600}+0+0")
+        geom_w = sw
+        geom_h = sh
+        self.main_window.geometry(f"{geom_w}x{geom_h}+0+0")
         self.main_window.minsize(800, 600)
         self.main_window.resizable(True, True)
         # Hacer que la fila de la galería (1) se expanda con la ventana
@@ -95,6 +95,7 @@ class WallpaperEngineGUI:
                 DEFAULT_CONFIG["--dir"] = expanded_dir
             else:
                 DEFAULT_CONFIG["--dir"] = ""
+        
 
     
     def _create_ui(self):
@@ -230,6 +231,11 @@ class WallpaperEngineGUI:
         # Gallery view callbacks
         self.gallery_view.on_wallpaper_applied = self._on_wallpaper_applied
         self.gallery_view.on_refresh_needed = self._refresh_with_scroll_update
+
+        # startup
+        self.flags_panel.startup_checkbox.config(
+        command=self.event_handlers.on_startup_changed
+        )
     
     def _initialize_ui_values(self):
         """Inicializa los valores de la UI desde la configuración"""
@@ -240,6 +246,9 @@ class WallpaperEngineGUI:
         self.flags_panel.random_mode.set(
             DEFAULT_CONFIG["--random"] or DEFAULT_CONFIG["--delay"]["active"]
         )
+        self.flags_panel.startup.set(DEFAULT_CONFIG.get("__run_at_startup__", False))
+        self.event_handlers.sync_startup_state()
+        
         # Cargar estado de logs desde configuración
         logs_visible = DEFAULT_CONFIG.get("--show-logs", True)
         self.flags_panel.logs_visible.set(logs_visible)

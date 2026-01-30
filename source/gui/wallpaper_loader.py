@@ -20,7 +20,7 @@ def calculate_dynamic_thumb_size(screen_width, desired_columns=8):
     thumb_width = max(80, available_width // desired_columns)  # mínimo 80px
     # Mantener proporción aspect ratio aproximada (100:112 ≈ 0.89)
     thumb_height = int(thumb_width * 1.12)
-    return (thumb_width, thumb_height)
+    return (thumb_width, thumb_height)  
 
 
 class WallpaperLoader:
@@ -98,7 +98,6 @@ def get_wallpapers_list(root_dir, loader, group=None, favorites=None, groups_dic
         return []
     
     try:
-        # Primero: todos los wallpapers válidos (con preview)
         all_with_preview = []
         for w in listdir(root_dir):
             folder = path.join(root_dir, w)
