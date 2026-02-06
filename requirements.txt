@@ -1,4 +1,4 @@
 Pillow>=9.5.0,<11
+
 # Notes:
 # - Tkinter is provided by system packages (python3-tk / python3-tkinter)
-# - No other PyPI dependencies are required currently

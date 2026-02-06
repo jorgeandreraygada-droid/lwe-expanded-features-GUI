@@ -16,6 +16,7 @@ from gui.ui_components.sound_panel import SoundPanel  # ← NUEVO
 from gui.ui_components.gallery_canvas import GalleryCanvas
 from gui.event_handler.event_handler import EventHandlers
 from gui.gallery_view.gallery_manager import GalleryManager
+from gui.keybinding_manager import KeybindingController
 
 
 class WallpaperEngineGUI:
@@ -158,6 +159,19 @@ class WallpaperEngineGUI:
         # initial max cols placeholder (will be computed once canvas has size)
         self.gallery_view.max_cols = getattr(self.gallery_view, "max_cols", 6)
         # NOTE: resize handler moved to instance method `_on_canvas_resize`
+        
+        # Keybinding controller
+        self.keybinding_controller = KeybindingController(
+            self.main_window,
+            DEFAULT_CONFIG,
+            self.engine,
+            self.event_handlers,
+            self.gallery_view,
+            self._log
+        )
+        
+        # Add keybinding controller to ui_components for event handlers
+        ui_components['keybinding_controller'] = self.keybinding_controller
     
     def _connect_callbacks(self):
         """Conecta todos los callbacks de eventos"""
@@ -193,6 +207,10 @@ class WallpaperEngineGUI:
         )
         self.flags_panel.clear_log_button.config(
             command=self.log_area.clear
+        )
+        
+        self.flags_panel.keybindings_button.config(
+            command=self.event_handlers.on_configure_keybindings
         )
         
         # Sound panel ← NUEVO
@@ -274,6 +292,20 @@ class WallpaperEngineGUI:
             self.gallery_view.max_cols = initial_cols
         except Exception:
             pass
+        
+        # Log keybindings
+        self._log_keybindings()
+
+    def _log_keybindings(self):
+        """Log available keybindings at startup"""
+        keybindings_info = self.keybinding_controller.get_keybindings_info()
+        if keybindings_info:
+            self._log("[KEYBIND] Available keybindings:")
+            for action, keybind in keybindings_info.items():
+                self._log(f"  {action.replace('_', ' ').title()}: {keybind}")
+        else:
+            self._log("[KEYBIND] No keybindings configured. Click 'KEYBINDINGS' button to set them up!")
+
 
     def _on_canvas_resize(self, event=None):
         """Handler que recalcula max_cols según el tamaño estático de thumbnail."""

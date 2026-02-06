@@ -31,7 +31,10 @@ DEFAULT_CONFIG = {
     },
     "--favorites": [],
     "--groups": {},
-    "--pool": []
+    "--pool": [],
+    "--keybindings": {
+        "bindings": []
+    }
 }
 
 

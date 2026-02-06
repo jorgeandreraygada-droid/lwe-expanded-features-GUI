@@ -88,6 +88,10 @@ class FlagsPanel:
         self.clear_log_button = Button(self.frame, text="CLEAR LOG", bg="#661111", fg="#ffffff", font=("Arial", 9, "bold"), activebackground="#881111", activeforeground="#ff3333", bd=2, relief="raised", cursor="hand2")
         self.clear_log_button.grid(column=0, row=6, padx=5, pady=5)
         
+        # Botón keybindings
+        self.keybindings_button = Button(self.frame, text="KEYBINDINGS", bg="#00AA44", fg="#ffffff", font=("Arial", 9, "bold"), activebackground="#00CC55", activeforeground="#ff3333", bd=2, relief="raised", cursor="hand2")
+        self.keybindings_button.grid(column=0, row=7, padx=5, pady=5)
+        
         # Área para widgets dinámicos (timer)
         self.dynamic_widgets = []
     

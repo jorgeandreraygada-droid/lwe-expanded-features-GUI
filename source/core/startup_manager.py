@@ -96,7 +96,7 @@ def validate_environment():
 def run_at_startup():
     """Main startup function"""
     try:
-        from config import load_config, build_args
+        from gui.config import load_config, build_args
     except ImportError as e:
         log(f"[FATAL ERROR] Failed to import config module: {e}")
         sys.exit(1)
