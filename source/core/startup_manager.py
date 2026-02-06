@@ -25,7 +25,8 @@ if not GUI_DIR.exists():
     print(f"[FATAL ERROR] GUI directory not found: {GUI_DIR}")
     sys.exit(1)
 
-# Add gui directory to path for imports
+# Add directories to path for imports (order matters - SOURCE_DIR first for proper module resolution)
+sys.path.insert(0, str(SOURCE_DIR))
 sys.path.insert(0, str(GUI_DIR))
 sys.path.insert(0, str(CORE_DIR))
 

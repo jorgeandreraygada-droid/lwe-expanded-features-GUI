@@ -107,10 +107,14 @@ log_message "Python: $(python3 --version)"
 if python3 << 'PYTHON_EOF'
 import sys
 import traceback
+from pathlib import Path
 
 try:
-    # Add script directory to path
+    # Add directories to path - SOURCE_DIR first for proper module resolution
     script_dir = '$SCRIPT_DIR'
+    source_dir = str(Path(script_dir).parent)
+    
+    sys.path.insert(0, source_dir)
     sys.path.insert(0, script_dir)
     
     # Import and run the startup manager
